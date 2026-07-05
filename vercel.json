@@ -1,11 +1,9 @@
 {
-    "builds": [
-        {
-            "src": "backend/app.py",
-            "use": "@vercel/python",
-            "config": { "maxLambdaSize": "15mb" }
+    "functions": {
+        "backend/app.py": {
+            "maxDuration": 30
         }
-    ],
+    },
     "rewrites": [
         {
             "source": "/api(/.*)?",
