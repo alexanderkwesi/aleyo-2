@@ -82,7 +82,7 @@ import QRCode from 'qrcode';
 // ============================================================
 // CONSTANTS & CONFIGURATION
 // ============================================================
-const API_BASE = process.env.REACT_APP_API_URL || 'http://127.0.0.1:8000';
+const API_BASE = process.env.REACT_APP_API_URL || 'http://127.0.0.1:39816';
 const STORAGE_KEYS = {
   PROJECT_PREFIX: 'project_',
   PUBLISHED_PREFIX: 'published_',
