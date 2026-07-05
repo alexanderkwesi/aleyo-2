@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Home</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      background-color: #d8d5ec; 
+      color: #100303; 
+      font-family: Inter, sans-serif; 
+      line-height: 1.6; 
+    }
+    h1, h2, h3, h4, h5, h6 { color: #290707; }
+    a { color: #9D4EDD; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+    .published-site { min-height: 100vh; }
+    /* External link indicator */
+    a.external-link::after {
+      content: " ↗";
+      font-size: 0.8em;
+    }
+    /* Anchor link smooth scrolling */
+    html {
+      scroll-behavior: smooth;
+    }
+  </style>
+</head>
+<body>
+  <div class="published-site">
+    
+    
+    <div style="display: flex; justify-content: center; gap: 16px; padding: 16px 20px; flex-wrap: wrap; color: #100303; ">
+              <a href="/"><span style="color: #100303; text-decoration: none; padding: 8px 16px; border-radius: 12px; transition: all 0.3s ease;">Home</span></a><a href="/about"><span style="color: #100303; text-decoration: none; padding: 8px 16px; border-radius: 12px; transition: all 0.3s ease;">About</span></a><a href="/services"><span style="color: #100303; text-decoration: none; padding: 8px 16px; border-radius: 12px; transition: all 0.3s ease;">Services</span></a><a href="/contact"><span style="color: #100303; text-decoration: none; padding: 8px 16px; border-radius: 12px; transition: all 0.3s ease;">Contact</span></a>
+            </div><div style="text-align: center; padding: 80px 20px; color: #100303; ">
+              
+              <h1 style="font-size: 3rem; margin-bottom: 16px; color: #290707;">New Hero Section</h1>
+              <p style="font-size: 1.5rem; margin-bottom: 32px; color: rgba(16, 3, 3, 0.8); max-width: 800px; margin-left: auto; margin-right: auto;">Add your compelling message here</p>
+              <button style="background: #9D4EDD; border: none; padding: 12px 32px; border-radius: 999px; color: white; font-size: 1.1rem; cursor: pointer;">Learn More</button>
+            </div><div style="color: #100303; "></div><div style="color: #100303; "></div><div style="color: #100303; "></div><div style="color: #100303; "></div><div style="padding: 48px 20px; margin-top: 32px; background: rgba(157, 78, 221, 0.05); border-top: 1px solid rgba(157, 78, 221, 0.1); color: #100303; ">
+              <div style="max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 32px;">
+                <div>
+                  <h3 style="color: #290707; margin-bottom: 16px;">Your Company</h3>
+                  <p style="color: rgba(16, 3, 3, 0.7); margin-bottom: 16px;">Building amazing websites</p>
+                </div>
+                <div>
+                  <h4 style="color: #290707; margin-bottom: 12px;">Quick Links</h4>
+                  <a href="/"><div style="color: rgba(16, 3, 3, 0.7); text-decoration: none; margin-bottom: 8px;">Home</div></a><a href="/about"><div style="color: rgba(16, 3, 3, 0.7); text-decoration: none; margin-bottom: 8px;">About</div></a><a href="/services"><div style="color: rgba(16, 3, 3, 0.7); text-decoration: none; margin-bottom: 8px;">Services</div></a><a href="/contact"><div style="color: rgba(16, 3, 3, 0.7); text-decoration: none; margin-bottom: 8px;">Contact</div></a>
+                </div>
+                <div>
+                  <h4 style="color: #290707; margin-bottom: 12px;">Connect</h4>
+                  <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <span style="padding: 8px;">Facebook</span><span style="padding: 8px;">Twitter</span><span style="padding: 8px;">Instagram</span><span style="padding: 8px;">LinkedIn</span>
+                  </div>
+                </div>
+              </div>
+              <div style="text-align: center; margin-top: 32px; padding-top: 16px; border-top: 1px solid rgba(16, 3, 3, 0.1); color: rgba(16, 3, 3, 0.5);">
+                © 2024 Your Company. All rights reserved.
+              </div>
+            </div>
+  </div>
+</body>
+</html>
