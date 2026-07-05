@@ -1,26 +1,31 @@
 {
-"services": {
-        "frontend": {
+    "services": {
+        "src": {
             "root": ".",
             "framework": "create-react-app"
         },
         "backend": {
             "root": "backend",
-            "functions": {
-                "app.py": {
-                    "maxDuration": 30
-                }
+            "entrypoint": "app.py",
+            "config": {
+                "maxLambdaSize": "15mb"
             }
         }
     },
     "rewrites": [
         {
             "source": "/api(/.*)?",
-            "destination": "/api/$1"
+            "destination": {
+                "type": "service",
+                "service": "backend"
+            }
         },
         {
             "source": "/(.*)",
-            "destination": "/index.html"
+            "destination": {
+                "type": "service",
+                "service": "src"
+            }
         }
     ]
 }
