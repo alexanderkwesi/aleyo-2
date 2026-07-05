@@ -15,15 +15,13 @@
         {
             "source": "/api(/.*)?",
             "destination": {
-                "type": "service",
-                "service": "backend"
+                "service": "backend/app.py"
             }
         },
         {
             "source": "/(.*)",
             "destination": {
-                "type": "service",
-                "service": "src"
+                "service": "src/App.js"
             }
         }
     ]
