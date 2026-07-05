@@ -5,7 +5,10 @@
             "framework": "create-react-app"
         },
         "backend": {
-            "root": "backend"
+            "root": "backend",
+            "config": {
+                "maxLambdaSize": "15mb"
+            }
         }
     },
     "rewrites": [
@@ -20,7 +23,7 @@
             "source": "/(.*)",
             "destination": {
                 "type": "service",
-                "service": "frontend"
+                "service": "src"
             }
         }
     ]
