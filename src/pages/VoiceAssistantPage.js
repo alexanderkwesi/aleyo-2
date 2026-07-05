@@ -112,7 +112,7 @@ const GRADIENT_ACCENT = `linear-gradient(135deg, ${COLORS.accent.purple} 0%, ${C
 // -------------------------------------------------------------------
 // Backend connection
 // -------------------------------------------------------------------
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://127.0.0.1:8000';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://127.0.0.1:39816';
 
 // Animation variants
 const fadeInUp = {
