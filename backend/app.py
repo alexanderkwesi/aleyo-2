@@ -78,7 +78,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
 # ==================== Anthropic Configuration ====================
 import os
 
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "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")
 if not ANTHROPIC_API_KEY:
     raise ValueError("ANTHROPIC_API_KEY environment variable is not set")
 ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-3-sonnet-20240229")  # ✅ Correct
