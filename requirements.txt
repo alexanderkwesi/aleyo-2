@@ -1,7 +1,7 @@
 --only-binary :all:
 fastapi==0.115.6
 uvicorn[standard]==0.34.0
-flask@latest
+flask
 pydantic-core==2.46.4
 pydantic-settings==2.6.1
 websockets==14.1
