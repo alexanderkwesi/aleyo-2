@@ -14,15 +14,11 @@
     "rewrites": [
         {
             "source": "/api(/.*)?",
-            "destination": {
-                "service": "backend/app.py"
-            }
+            "destination": "/api/$1"
         },
         {
             "source": "/(.*)",
-            "destination": {
-                "service": "src/App.js"
-            }
+            "destination": "/index.html"
         }
     ]
 }
