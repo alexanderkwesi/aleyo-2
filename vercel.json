@@ -1,12 +1,7 @@
 {
-    
-        "backend": {
-            "root": "backend",
-            "functions": {
-                "app.py": {
-                    "maxDuration": 30
-                }
-            }
+    "functions": {
+        "backend/app.py": {
+            "maxDuration": 30
         }
     },
     "rewrites": [
