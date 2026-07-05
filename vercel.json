@@ -1,15 +1,11 @@
 {
-    "services": {
-        "frontend": {
-            "root": ".",
-            "framework": "create-react-app"
-        },
-        "backend": {
-            "root": "backend",
-            "entrypoint": "app.py",
-             "framework": "fastapi"
+    "builds": [
+        {
+            "src": "backend/app.py",
+            "use": "@vercel/python",
+            "config": { "maxLambdaSize": "15mb" }
         }
-    },
+    ],
     "rewrites": [
         {
             "source": "/api(/.*)?",
