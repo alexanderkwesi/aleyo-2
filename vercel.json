@@ -1,15 +1,12 @@
 {
     "services": {
-        "src": {
+        "frontend": {
             "root": ".",
             "framework": "create-react-app"
         },
         "backend": {
             "root": "backend",
-            "entrypoint": "app.py",
-            "config": {
-                "maxLambdaSize": "15mb"
-            }
+            "entrypoint": "app.py"
         }
     },
     "rewrites": [
@@ -24,7 +21,7 @@
             "source": "/(.*)",
             "destination": {
                 "type": "service",
-                "service": "src"
+                "service": "frontend"
             }
         }
     ]
