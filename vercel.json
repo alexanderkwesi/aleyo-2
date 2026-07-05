@@ -1,8 +1,5 @@
 {
-    "experimentalServices": {
-        "frontend": {
-            "root": "."
-        },
+    
         "backend": {
             "root": "backend",
             "functions": {
