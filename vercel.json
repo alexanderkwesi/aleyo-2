@@ -1,7 +1,8 @@
 {
-    "experimentalServices": {
+"services": {
         "frontend": {
-            "root": "."
+            "root": ".",
+            "framework": "create-react-app"
         },
         "backend": {
             "root": "backend",
