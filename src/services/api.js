@@ -3,7 +3,7 @@ import axios from 'axios';
 import { authService } from './auth';
 
 // Base API configuration
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://127.0.0.1:39816';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://aleyo-2-1.onrender.com';
 
 // Create axios instance
 const api = axios.create({
