@@ -9,7 +9,7 @@ import os
 # errors that depend on where the script happens to be launched from.
 #BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 #DB_PATH = os.path.join(BASE_DIR, "aleyo.db")
-DATABASE_URL = f"gs://aleyo-bucket/aleyo.db"
+DATABASE_URL = f"sqlite:///gs://aleyo-bucket/aleyo.db"
 
 # Create engine
 connect_args = {"check_same_thread": False}
