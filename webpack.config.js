@@ -33,7 +33,7 @@ module.exports = {
     },
     historyApiFallback: true,
     client: {
-      webSocketURL: "ws://localhost:3000/ws",
+      webSocketURL: "ws://127.0.0.1:3001/ws",
       overlay: {
         errors: true,
         warnings: false,
@@ -55,7 +55,7 @@ module.exports = {
     proxy: [
       {
         "/api": {
-          target: "http://localhost:8000",
+          target: "http://127.0.0.1:3001",
           changeOrigin: true,
           secure: false,
         },
