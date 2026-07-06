@@ -1,20 +1,33 @@
++17
+-25
+Lines changed: 17 additions & 25 deletions
+Original file line number	Original file line	Diff line number	Diff line change
+@@ -1,28 +1,20 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "dist"
-      }
-    }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
-    }
-  ]
-}
+    "services": {
+        "frontend": {
+            "root": ".",
+            "framework": "create-react-app"
+        },
+        "backend": {
+            "root": ".",
+            "entrypoint": "http://127.0.0.1:39816"
+        }
+    },
+    "rewrites": [
+        {
+            "source": "/api(/.*)?",
+            "destination": {
+                "type": "service",
+                "service": "http://127.0.0.1:39816"
+            }
+        },
+        {
+            "source": "/(.*)",
+            "destination": {
+                "type": "service",
+                "service": "src"
+            }
+        }
     ]
 }
