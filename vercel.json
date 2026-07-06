@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api(/.*)?",
-      "destination": "https://aleyo-2-1.onrender.comm/api$1"
+      "destination": "https://aleyo-2-1.onrender.com"
     },
     {
       "source": "/(.*)",
