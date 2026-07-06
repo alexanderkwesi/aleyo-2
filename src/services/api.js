@@ -1,7 +1,7 @@
 // src/services/api.js
 import axios from 'axios';
 import { authService } from './auth';
-
+REACT_APP_API_URL = "https://aleyo-2.vercel.app"
 // Base API configuration
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://127.0.0.1:3001';
 
