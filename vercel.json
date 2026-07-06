@@ -1,29 +1,12 @@
-
 {
-    "services": {
-        "frontend": {
-            "root": ".",
-            "framework": "create-react-app"
-        },
-        "backend": {
-            "root": ".",
-            "entrypoint": "http://127.0.0.1:39816"
-        }
+  "rewrites": [
+    {
+      "source": "/api(/.*)?",
+      "destination": "https://aleyo-2-1.onrender.comm/api$1"
     },
-    "rewrites": [
-        {
-            "source": "/api(/.*)?",
-            "destination": {
-                "type": "service",
-                "service": "http://127.0.0.1:39816"
-            }
-        },
-        {
-            "source": "/(.*)",
-            "destination": {
-                "type": "service",
-                "service": "src"
-            }
-        }
-    ]
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
 }
