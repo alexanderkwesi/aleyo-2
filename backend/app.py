@@ -1,4 +1,4 @@
-# app.py - Updated with proper GCS Storage Integration
+# app.py - Complete GCS Storage Integration with Database
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect, Depends, status, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -27,16 +27,11 @@ import bcrypt
 import os
 import anthropic
 
-# Import routers - FIXED: Only import the router from seed_integrations
+# Import routers
 from seed_integrations import router as integrations_router
-
 import seed_integrations
-
-
 from pricing import router as pricing_router
 
-# Import database utilities
-# app.py - At the top, after all imports
 # Import database utilities
 from database import get_db, init_db
 
@@ -80,8 +75,6 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
 
 # ==================== Anthropic Configuration ====================
-import os
-
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 if not ANTHROPIC_API_KEY:
     raise ValueError("ANTHROPIC_API_KEY environment variable is not set")
@@ -98,7 +91,9 @@ ALLOWED_ORIGINS = [
     "http://127.0.0.1:4000",
     "http://127.0.0.1:8000",
     "http://localhost:3000",
-    "http://127.0.0.1:3001","*",
+    "http://127.0.0.1:3001",
+    "http://localhost:3001",
+    "*",
 ]
 
 _frontend_url = os.getenv("FRONTEND_URL", "")
@@ -116,7 +111,6 @@ app.add_middleware(
 # ==================== Include Routers ====================
 
 app.include_router(integrations_router, prefix="/api")
-
 app.include_router(pricing_router, prefix="/api")
 
 # ==================== Startup Event ====================
@@ -144,7 +138,7 @@ class UserResponse(BaseModel):
     credits: int
     created_at: datetime
     subscription_tier: str
-    avatar_url: Optional[str] = None  # Add this field
+    avatar_url: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -239,7 +233,6 @@ class VoiceCommandResponse(BaseModel):
     
 # ==================== Tutorial Models ====================
 
-# Enums as Python Enums
 class TutorialCategory(str, Enum):
     BEGINNER = "beginner"
     DESIGN = "design"
@@ -263,7 +256,6 @@ class TutorialStatus(str, Enum):
     PUBLISHED = "published"
     ARCHIVED = "archived"
 
-# Base Pydantic Models
 class TutorialBase(BaseModel):
     title: str
     description: Optional[str] = None
@@ -318,7 +310,6 @@ class TutorialResponse(TutorialBase):
     class Config:
         from_attributes = True
 
-# Tutorial Completion Models
 class TutorialCompletionBase(BaseModel):
     tutorial_id: str
     user_id: str
@@ -333,7 +324,6 @@ class TutorialCompletionResponse(TutorialCompletionBase):
     class Config:
         from_attributes = True
 
-# User Progress Models
 class UserTutorialProgressBase(BaseModel):
     tutorial_id: str
     user_id: str
@@ -352,7 +342,6 @@ class UserTutorialProgressUpdate(BaseModel):
     progress_percentage: Optional[int] = None
     completed_at: Optional[datetime] = None
 
-# ADD THIS MISSING MODEL - The tutorial endpoints expect this
 class TutorialProgressUpdate(BaseModel):
     current_section: int = 0
     completed_sections: List[int] = []
@@ -365,7 +354,6 @@ class UserTutorialProgressResponse(UserTutorialProgressBase):
     class Config:
         from_attributes = True
 
-# Tutorial View Models
 class TutorialViewBase(BaseModel):
     tutorial_id: str
     user_id: Optional[str] = None
@@ -383,7 +371,6 @@ class TutorialViewResponse(TutorialViewBase):
     class Config:
         from_attributes = True
 
-# Comment Models
 class TutorialCommentBase(BaseModel):
     tutorial_id: str
     user_id: str
@@ -403,7 +390,6 @@ class TutorialCommentResponse(TutorialCommentBase):
     class Config:
         from_attributes = True
 
-# Like Models
 class TutorialLikeBase(BaseModel):
     tutorial_id: str
     user_id: str
@@ -419,7 +405,6 @@ class TutorialLikeResponse(TutorialLikeBase):
     class Config:
         from_attributes = True
 
-# Bookmark Models
 class TutorialBookmarkBase(BaseModel):
     tutorial_id: str
     user_id: str
@@ -434,7 +419,6 @@ class TutorialBookmarkResponse(TutorialBookmarkBase):
     class Config:
         from_attributes = True
 
-# Category Models
 class TutorialCategoryModelBase(BaseModel):
     name: str
     display_name: str
@@ -464,7 +448,6 @@ class TutorialCategoryModelResponse(TutorialCategoryModelBase):
     class Config:
         from_attributes = True
 
-# Tag Models
 class TutorialTagBase(BaseModel):
     name: str
     slug: str
@@ -479,7 +462,6 @@ class TutorialTagResponse(TutorialTagBase):
     class Config:
         from_attributes = True
 
-# Tag Mapping Models
 class TutorialTagMappingBase(BaseModel):
     tutorial_id: str
     tag_id: str
@@ -506,6 +488,19 @@ class FileUploadResponse(BaseModel):
 class FileDeleteResponse(BaseModel):
     success: bool
     message: str
+
+# ==================== Database File Tracking Model ====================
+
+class UploadedFile(BaseModel):
+    id: str
+    user_id: str
+    project_id: Optional[str] = None
+    file_name: str
+    file_url: str
+    file_path: str
+    file_size: int
+    content_type: str
+    created_at: datetime
 
 # ==================== Helper Functions ====================
 
@@ -542,7 +537,6 @@ async def get_current_user(
         )
     return user
 
-# Wire up real auth for the integrations router now that get_current_user is defined.
 app.dependency_overrides[seed_integrations.get_current_user_placeholder] = get_current_user
 
 def hash_password(password: str) -> str:
@@ -761,7 +755,7 @@ async def signup(user_data: UserCreate, db: Session = Depends(get_db)):
         password_hash=hashed_password,
         credits_balance=50,
         subscription_tier="free",
-        avatar_url=None  # Initialize avatar_url
+        avatar_url=None
     )
     db.add(user)
     db.commit()
@@ -816,7 +810,127 @@ async def login(request: Request, login_data: UserLogin, db: Session = Depends(g
         "redirect": "/dashboard"
     }
 
-# ==================== File Upload Endpoints ====================
+@app.post("/api/auth/forgot-password")
+async def forgot_password(request: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == request.email).first()
+    
+    if not user:
+        return {"message": "If your email is registered, you will receive a password reset link"}
+    
+    reset_token = secrets.token_urlsafe(32)
+    user.password_reset_token = reset_token
+    user.password_reset_expires = datetime.now(timezone.utc) + timedelta(hours=24)
+    db.commit()
+    
+    logger.info(f"Password reset token for {user.email}: {reset_token}")
+    
+    return {"message": "Password reset email sent"}
+
+@app.post("/api/auth/reset-password")
+async def reset_password(request: ResetPasswordRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(
+        User.password_reset_token == request.token,
+        User.password_reset_expires > datetime.now(timezone.utc)
+    ).first()
+    
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset token")
+    
+    user.password_hash = hash_password(request.new_password)
+    user.password_reset_token = None
+    user.password_reset_expires = None
+    db.commit()
+    
+    return {"message": "Password reset successfully"}
+
+@app.get("/api/auth/me", response_model=UserResponse)
+async def get_current_user_info(current_user: User = Depends(get_current_user)):
+    return {
+        "id": str(current_user.id),
+        "name": current_user.name,
+        "email": current_user.email,
+        "credits": current_user.credits_balance,
+        "created_at": current_user.created_at,
+        "subscription_tier": current_user.subscription_tier,
+        "avatar_url": current_user.avatar_url
+    }
+
+@app.post("/api/auth/logout")
+async def logout(current_user: User = Depends(get_current_user)):
+    return {"message": "Logged out successfully"}
+
+@app.post("/api/auth/refresh")
+async def refresh_token(current_user: User = Depends(get_current_user)):
+    access_token = create_access_token(data={"sub": str(current_user.id)})
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+    }
+
+# ==================== Credit Management Endpoints ====================
+
+@app.get("/api/credits/balance")
+async def get_credit_balance(current_user: User = Depends(get_current_user)):
+    return {
+        "credits": current_user.credits_balance,
+        "subscription_tier": current_user.subscription_tier
+    }
+
+@app.get("/api/credits/transactions")
+async def get_credit_transactions(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    transactions = db.query(CreditTransaction).filter(
+        CreditTransaction.user_id == current_user.id
+    ).order_by(desc(CreditTransaction.created_at)).all()
+    
+    return [
+        {
+            "id": str(tx.id),
+            "amount": tx.amount,
+            "type": tx.type,
+            "description": tx.description,
+            "created_at": tx.created_at
+        }
+        for tx in transactions
+    ]
+
+@app.post("/api/credits/purchase")
+async def purchase_credits(
+    purchase: CreditPurchase,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    credit_prices = {
+        50: 2.99,
+        100: 4.99,
+        500: 19.99,
+        1000: 34.99,
+        5000: 149.99
+    }
+    
+    package_price = None
+    for credits, price in credit_prices.items():
+        if purchase.amount <= credits:
+            package_price = price
+            break
+    
+    if not package_price:
+        package_price = 299.99
+    
+    add_credits(db, str(current_user.id), purchase.amount, f"Purchase of {purchase.amount} credits")
+    db.refresh(current_user)
+    
+    return {
+        "success": True,
+        "credits_added": purchase.amount,
+        "total_credits": current_user.credits_balance,
+        "amount_charged": package_price,
+        "payment_method": purchase.payment_method
+    }
+
+# ==================== GCS File Upload Endpoints ====================
 
 @app.post("/api/upload", response_model=FileUploadResponse)
 @limiter.limit("20/minute")
@@ -853,6 +967,19 @@ async def upload_file(
         # Upload to GCS
         public_url = upload_file_to_gcs(file, blob_path)
         
+        # Save to database (if you have a File model, you can create it here)
+        # file_record = File(
+        #     id=str(uuid.uuid4()),
+        #     user_id=current_user.id,
+        #     file_name=file.filename,
+        #     file_url=public_url,
+        #     file_path=blob_path,
+        #     file_size=file_size,
+        #     content_type=file.content_type or "application/octet-stream"
+        # )
+        # db.add(file_record)
+        # db.commit()
+        
         return FileUploadResponse(
             success=True,
             file_url=public_url,
@@ -878,7 +1005,7 @@ async def upload_avatar(
     db: Session = Depends(get_db)
 ):
     """
-    Upload a user avatar image
+    Upload a user avatar image to GCS
     
     - **file**: Image file (jpg, png, gif, webp)
     
@@ -938,7 +1065,7 @@ async def upload_website_assets(
     db: Session = Depends(get_db)
 ):
     """
-    Upload multiple website assets (images, CSS, JS) for a project
+    Upload multiple website assets to GCS for a project
     
     - **files**: List of files to upload
     - **project_id**: The project ID these assets belong to
@@ -982,7 +1109,8 @@ async def upload_website_assets(
                 "original_name": file.filename,
                 "url": public_url,
                 "size": file_size,
-                "content_type": file.content_type
+                "content_type": file.content_type,
+                "path": blob_path
             })
             
         except Exception as e:
@@ -1026,6 +1154,7 @@ async def delete_uploaded_file(
                 if not project:
                     raise HTTPException(status_code=403, detail="You don't have permission to delete this file")
         
+        # Delete from GCS
         delete_file_from_gcs(file_path)
         
         return FileDeleteResponse(
@@ -1091,7 +1220,193 @@ async def list_user_files(
         logger.error(f"List files error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to list files: {str(e)}")
 
-# ==================== Missing Helper Functions ====================
+# ==================== Project Management Endpoints ====================
+
+@app.post("/api/projects")
+async def create_project(
+    project_data: ProjectCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    if not deduct_credits(db, str(current_user.id), 1):
+        raise HTTPException(status_code=402, detail="Insufficient credits")
+    
+    global_styles = project_data.customizations.get("styles", {}) if project_data.customizations else {}
+    layout_config = project_data.customizations.get("layout", {}) if project_data.customizations else {}
+    
+    project = Project(
+        id=str(uuid.uuid4()),
+        name=project_data.name,
+        user_id=current_user.id,
+        global_styles=global_styles,
+        layout_config=layout_config
+    )
+    
+    db.add(project)
+    db.commit()
+    db.refresh(project)
+    
+    for design_id in project_data.designs:
+        stmt = project_designs.insert().values(
+            project_id=project.id,
+            design_id=design_id,
+            merged_order=0
+        )
+        db.execute(stmt)
+    
+    db.commit()
+    
+    result = db.execute(
+        project_designs.select().where(project_designs.c.project_id == project.id)
+    )
+    design_ids = [row.design_id for row in result]
+    
+    return {
+        "id": str(project.id),
+        "name": project.name,
+        "designs": design_ids,
+        "customizations": {
+            "styles": project.global_styles,
+            "layout": project.layout_config
+        },
+        "html_code": project.html_code,
+        "created_at": project.created_at,
+        "updated_at": project.updated_at,
+        "user_id": str(project.user_id),
+        "published_url": project.published_url
+    }
+
+@app.get("/api/projects")
+async def get_user_projects(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    projects = db.query(Project).filter(
+        Project.user_id == current_user.id
+    ).order_by(desc(Project.updated_at)).all()
+    
+    result = []
+    for project in projects:
+        result_designs = db.execute(
+            project_designs.select().where(project_designs.c.project_id == project.id)
+        )
+        design_ids = [row.design_id for row in result_designs]
+        
+        result.append({
+            "id": str(project.id),
+            "name": project.name,
+            "designs": design_ids,
+            "customizations": {
+                "styles": project.global_styles,
+                "layout": project.layout_config
+            },
+            "html_code": project.html_code,
+            "created_at": project.created_at,
+            "updated_at": project.updated_at,
+            "user_id": str(project.user_id),
+            "published_url": project.published_url
+        })
+    
+    return result
+
+@app.get("/api/projects/{project_id}")
+async def get_project(
+    project_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    if str(project.user_id) != str(current_user.id):
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    result = db.execute(
+        project_designs.select().where(project_designs.c.project_id == project.id)
+    )
+    design_ids = [row.design_id for row in result]
+    
+    return {
+        "id": str(project.id),
+        "name": project.name,
+        "designs": design_ids,
+        "customizations": {
+            "styles": project.global_styles,
+            "layout": project.layout_config
+        },
+        "html_code": project.html_code,
+        "created_at": project.created_at,
+        "updated_at": project.updated_at,
+        "user_id": str(project.user_id),
+        "published_url": project.published_url
+    }
+
+@app.put("/api/projects/{project_id}")
+async def update_project(
+    project_id: str,
+    updates: ProjectUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    if str(project.user_id) != str(current_user.id):
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    if updates.name:
+        project.name = updates.name
+    if updates.customizations:
+        project.global_styles = updates.customizations.get("styles", project.global_styles)
+        project.layout_config = updates.customizations.get("layout", project.layout_config)
+    if updates.html_code:
+        project.html_code = updates.html_code
+    
+    project.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(project)
+    
+    result = db.execute(
+        project_designs.select().where(project_designs.c.project_id == project.id)
+    )
+    design_ids = [row.design_id for row in result]
+    
+    return {
+        "id": str(project.id),
+        "name": project.name,
+        "designs": design_ids,
+        "customizations": {
+            "styles": project.global_styles,
+            "layout": project.layout_config
+        },
+        "html_code": project.html_code,
+        "created_at": project.created_at,
+        "updated_at": project.updated_at,
+        "user_id": str(project.user_id),
+        "published_url": project.published_url
+    }
+
+@app.delete("/api/projects/{project_id}")
+async def delete_project(
+    project_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    if str(project.user_id) != str(current_user.id):
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    db.delete(project)
+    db.commit()
+    
+    return {"message": "Project deleted successfully"}
+
+# ==================== Missing Helper Functions for AI Generation ====================
 
 def generate_features_component() -> str:
     """Generate a features component for the website"""
@@ -1226,11 +1541,6 @@ const Contact = () => {
 
 export default Contact;
 '''
-
-# ==================== Add remaining endpoints from original app.py ====================
-# ... (all the remaining endpoints from your original app.py go here)
-# Including: Project Management, Integration, Design, AI Voice Assistant, 
-# WebSocket, AI Website Generation, and Tutorial endpoints
 
 # ==================== Run the app ====================
 
