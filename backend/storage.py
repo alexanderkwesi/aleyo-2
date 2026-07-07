@@ -36,8 +36,8 @@ def upload_file_to_gcs(file: UploadFile, destination_blob_name: str) -> str:
 
     # Construct and return the public URL
     # Note: If your bucket is private, you will need to generate a signed URL instead
-    public_url = f"https://storage.googleapis.com/{bucket_name}/{destination_blob_name}"
-    
+    public_url = f"https://console.cloud.google.com/storage/browser/aleyo-bucket"
+
     return public_url
 
 def delete_file_from_gcs(blob_name: str):
