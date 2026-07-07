@@ -4,7 +4,7 @@ import { Box, Container, Typography, Button, CircularProgress, Paper, Alert } fr
 import { CheckCircle } from '@mui/icons-material';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 const REACT_APP_API_URL = "https://aleyo-2-six.vercel.app";
-const API_BASE_URL = REACT_APP_API_URL || 'http://127.0.0.1:3001';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://aleyo-2-six.vercel.app';
 
 const PaymentSuccess = () => {
   const [searchParams] = useSearchParams();
