@@ -3,8 +3,8 @@ import React, { useEffect, useState } from 'react';
 import { Box, Container, Typography, Button, CircularProgress, Paper, Alert } from '@mui/material';
 import { CheckCircle } from '@mui/icons-material';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-const REACT_APP_API_URL = "https://aleyo-2-six.vercel.app";
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://aleyo-2-six.vercel.app';
+//const REACT_APP_API_URL = "https://aleyo-2-six.vercel.app";
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://aleyo-2-1.onrender.com';
 
 const PaymentSuccess = () => {
   const [searchParams] = useSearchParams();
