@@ -82,8 +82,8 @@ import QRCode from 'qrcode';
 // ============================================================
 // CONSTANTS & CONFIGURATION
 // ============================================================
-const REACT_APP_API_URL = "https://aleyo-2-six.vercel.app";
-const API_BASE = process.env.REACT_APP_API_URL || 'https://aleyo-2-six.vercel.app';
+//const REACT_APP_API_URL = "https://aleyo-2-six.vercel.app";
+const API_BASE = process.env.REACT_APP_API_URL || 'https://aleyo-2-1.onrender.com';
 const STORAGE_KEYS = {
   PROJECT_PREFIX: 'project_',
   PUBLISHED_PREFIX: 'published_',
