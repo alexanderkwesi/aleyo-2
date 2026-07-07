@@ -56,7 +56,7 @@ const G_START = '#4F6EF7';
 const G_MID = '#2DBCB6';
 const G_END = '#3ED67C';
 const GRAD = `linear-gradient(135deg, ${G_START} 0%, ${G_MID} 50%, ${G_END} 100%)`;
-REACT_APP_API_URL = "https://aleyo-2.vercel.app";
+REACT_APP_API_URL = "https://aleyo-2-six.vercel.app";
 // API Base URL
 const API_URL = REACT_APP_API_URL || 'http://127.0.0.1:3001';
 
