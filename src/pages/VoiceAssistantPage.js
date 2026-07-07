@@ -112,7 +112,7 @@ const GRADIENT_ACCENT = `linear-gradient(135deg, ${COLORS.accent.purple} 0%, ${C
 // -------------------------------------------------------------------
 // Backend connection
 // -------------------------------------------------------------------
-REACT_APP_API_URL = "https://aleyo-2.vercel.app";
+REACT_APP_API_URL = "https://aleyo-2-six.vercel.app";
 const API_BASE_URL = REACT_APP_API_URL || 'http://127.0.0.1:3001';
 
 // Animation variants
