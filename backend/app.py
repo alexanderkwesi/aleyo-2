@@ -93,7 +93,7 @@ ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3001",
     "http://localhost:3001",
-    "*",
+    "*","https://aleyo-2.vercel.app"
 ]
 
 _frontend_url = os.getenv("FRONTEND_URL", "")
@@ -1546,5 +1546,5 @@ export default Contact;
 
 if __name__ == "__main__":
     import uvicorn
-    HOST = "http://127.0.0.1" or "https://aleyo-2.vercel.app"
-    uvicorn.run(app, host=${HOST}, port=3001, log_level="info")
+    HOST = "http://127.0.0.1:3001" or "https://aleyo-2.vercel.app"
+    uvicorn.run(app, host=${HOST}, log_level="info")
