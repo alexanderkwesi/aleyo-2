@@ -83,7 +83,7 @@ import QRCode from 'qrcode';
 // CONSTANTS & CONFIGURATION
 // ============================================================
 const REACT_APP_API_URL = "https://aleyo-2-six.vercel.app";
-const API_BASE = REACT_APP_API_URL || 'http://127.0.0.1:3001';
+const API_BASE = process.env.REACT_APP_API_URL || 'https://aleyo-2-six.vercel.app';
 const STORAGE_KEYS = {
   PROJECT_PREFIX: 'project_',
   PUBLISHED_PREFIX: 'published_',
