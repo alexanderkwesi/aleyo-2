@@ -54,8 +54,8 @@ const G_START = '#4F6EF7';
 const G_MID = '#2DBCB6';
 const G_END = '#3ED67C';
 const GRAD = `linear-gradient(135deg, ${G_START} 0%, ${G_MID} 50%, ${G_END} 100%)`;
-const REACT_APP_API_URL = "https://aleyo-2-six.vercel.app";
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://aleyo-2-six.vercel.app';
+//const REACT_APP_API_URL = "https://aleyo-2-six.vercel.app";
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://aleyo-2-1.onrender.com';
 
 const categories = [
   { value: 'all', label: 'All' },
