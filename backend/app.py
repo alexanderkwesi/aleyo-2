@@ -1546,5 +1546,5 @@ export default Contact;
 
 if __name__ == "__main__":
     import uvicorn
-    HOST = "http://127.0.0.1:3001" or "https://aleyo-2.vercel.app"
+    HOST = "http://127.0.0.1:3001" or "https://aleyo-2-six.vercel.app"
     uvicorn.run(app, host=${HOST}, log_level="info")
