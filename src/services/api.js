@@ -1,6 +1,5 @@
 // src/services/api.js
 import axios from 'axios';
-import { authService } from './auth';
 
 // ✅ FIXED: Safe environment variable handling
 const getApiUrl = () => {
@@ -173,6 +172,233 @@ api.interceptors.response.use(
     }
   }
 );
+
+// Error handler
+const handleError = (error) => {
+  // Log error for debugging
+  console.error('API Error:', {
+    message: error.message,
+    status: error.response?.status,
+    data: error.response?.data,
+    config: error.config,
+  });
+
+  // Extract error message from response
+  if (error.response?.data) {
+    const errorData = error.response.data;
+    const message = errorData.detail || errorData.message || errorData.error || 'An error occurred';
+
+    // Create custom error with additional info
+    const customError = new Error(message);
+    customError.status = error.response.status;
+    customError.data = errorData;
+    customError.originalError = error;
+
+    throw customError;
+  }
+
+  // Network errors
+  if (error.code === 'ECONNABORTED') {
+    const timeoutError = new Error('Request timeout. Please try again.');
+    timeoutError.status = 408;
+    throw timeoutError;
+  }
+
+  if (error.message === 'Network Error') {
+    const networkError = new Error('Network error. Please check your connection.');
+    networkError.status = 0;
+    throw networkError;
+  }
+
+  throw error;
+};
+
+// ✅ ADDED: Project Service
+const projectService = {
+  // Get all projects
+  getProjects: async () => {
+    try {
+      const response = await api.get('/api/projects');
+      return response.data;
+    } catch (error) {
+      throw handleError(error);
+    }
+  },
+
+  // Get a single project
+  getProject: async (projectId) => {
+    try {
+      const response = await api.get(`/api/projects/${projectId}`);
+      return response.data;
+    } catch (error) {
+      throw handleError(error);
+    }
+  },
+
+  // Create a new project
+  createProject: async (projectData) => {
+    try {
+      const response = await api.post('/api/projects', projectData);
+      return response.data;
+    } catch (error) {
+      throw handleError(error);
+    }
+  },
+
+  // Update a project
+  updateProject: async (projectId, updates) => {
+    try {
+      const response = await api.put(`/api/projects/${projectId}`, updates);
+      return response.data;
+    } catch (error) {
+      throw handleError(error);
+    }
+  },
+
+  // Delete a project
+  deleteProject: async (projectId) => {
+    try {
+      const response = await api.delete(`/api/projects/${projectId}`);
+      return response.data;
+    } catch (error) {
+      throw handleError(error);
+    }
+  },
+
+  // Save HTML code for a project
+  saveHtml: async (projectId, htmlCode) => {
+    try {
+      const response = await api.put(`/api/projects/${projectId}`, { html_code: htmlCode });
+      return response.data;
+    } catch (error) {
+      throw handleError(error);
+    }
+  },
+
+  // Publish a project
+  publishProject: async (projectId) => {
+    try {
+      const response = await api.post(`/api/projects/${projectId}/publish`);
+      return response.data;
+    } catch (error) {
+      throw handleError(error);
+    }
+  },
+};
+
+// ✅ ADDED: Credit Service
+const creditService = {
+  // Get credit balance
+  getBalance: async () => {
+    try {
+      const response = await api.get('/api/credits/balance');
+      return response.data;
+    } catch (error) {
+      throw handleError(error);
+    }
+  },
+
+  // Get transaction history
+  getTransactions: async () => {
+    try {
+      const response = await api.get('/api/credits/transactions');
+      return response.data;
+    } catch (error) {
+      throw handleError(error);
+    }
+  },
+
+  // Purchase credits
+  purchaseCredits: async (amount, paymentMethod) => {
+    try {
+      const response = await api.post('/api/credits/purchase', {
+        amount,
+        payment_method: paymentMethod,
+      });
+      return response.data;
+    } catch (error) {
+      throw handleError(error);
+    }
+  },
+};
+
+// ✅ ADDED: Upload Service
+const uploadService = {
+  // Upload a single file
+  uploadFile: async (file, folder = 'uploads') => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('folder', folder);
+
+    try {
+      const response = await api.post('/api/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data;
+    } catch (error) {
+      throw handleError(error);
+    }
+  },
+
+  // Upload avatar
+  uploadAvatar: async (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await api.post('/api/upload/avatar', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data;
+    } catch (error) {
+      throw handleError(error);
+    }
+  },
+
+  // Upload website assets
+  uploadAssets: async (files, projectId) => {
+    const formData = new FormData();
+    files.forEach((file) => {
+      formData.append('files', file);
+    });
+    formData.append('project_id', projectId);
+
+    try {
+      const response = await api.post('/api/upload/website-assets', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data;
+    } catch (error) {
+      throw handleError(error);
+    }
+  },
+
+  // Delete a file
+  deleteFile: async (filePath) => {
+    try {
+      const response = await api.delete(`/api/upload/${filePath}`);
+      return response.data;
+    } catch (error) {
+      throw handleError(error);
+    }
+  },
+
+  // List user files
+  listFiles: async (folder = 'uploads') => {
+    try {
+      const response = await api.get(`/api/upload/list?folder=${folder}`);
+      return response.data;
+    } catch (error) {
+      throw handleError(error);
+    }
+  },
+};
 
 // Helper methods for API calls
 const apiService = {
@@ -357,46 +583,6 @@ const apiService = {
   },
 };
 
-// Error handler
-const handleError = (error) => {
-  // Log error for debugging
-  console.error('API Error:', {
-    message: error.message,
-    status: error.response?.status,
-    data: error.response?.data,
-    config: error.config,
-  });
-
-  // Extract error message from response
-  if (error.response?.data) {
-    const errorData = error.response.data;
-    const message = errorData.detail || errorData.message || errorData.error || 'An error occurred';
-
-    // Create custom error with additional info
-    const customError = new Error(message);
-    customError.status = error.response.status;
-    customError.data = errorData;
-    customError.originalError = error;
-
-    throw customError;
-  }
-
-  // Network errors
-  if (error.code === 'ECONNABORTED') {
-    const timeoutError = new Error('Request timeout. Please try again.');
-    timeoutError.status = 408;
-    throw timeoutError;
-  }
-
-  if (error.message === 'Network Error') {
-    const networkError = new Error('Network error. Please check your connection.');
-    networkError.status = 0;
-    throw networkError;
-  }
-
-  throw error;
-};
-
 // Token management utilities
 apiService.setAuthToken = (token) => {
   if (token) {
@@ -416,6 +602,13 @@ apiService.removeAuthToken = () => {
   localStorage.removeItem('user');
 };
 
-// Export the axios instance and service
-export { api, apiService };
+// ✅ EXPORT all services
+export { 
+  api, 
+  apiService, 
+  projectService, 
+  creditService, 
+  uploadService 
+};
+
 export default apiService;
