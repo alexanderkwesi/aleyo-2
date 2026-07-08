@@ -15,7 +15,9 @@
   },
   "scripts": {
     "analyze": "source-map-explorer 'build/static/js/*.js'",
-    "build": "react-scripts build && npm run analyze"
+    "build:dev": "react-scripts build && npm run analyze",
+    "build": "GENERATE_SOURCEMAP=false react-scripts build",
+    "vercel-build": "GENERATE_SOURCEMAP=false react-scripts build"
   },
   "devDependencies": {
     "source-map-explorer": "^2.5.3"
