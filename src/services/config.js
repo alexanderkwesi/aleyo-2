@@ -1,5 +1,6 @@
 // src/config.js
-// ✅ Safe environment variable handling for browser
+// ✅ Completely avoid using process.env in browser code
+
 const getApiUrl = () => {
   // Check if we're in a browser environment
   if (typeof window !== 'undefined') {
@@ -17,16 +18,4 @@ const getApiUrl = () => {
   return 'https://aleyo-2-1.onrender.com';
 };
 
-// Try to get from environment (for build time)
-const envUrl = typeof process !== 'undefined' && process.env 
-  ? process.env.REACT_APP_API_URL 
-  : null;
-
-export const API_BASE = envUrl || getApiUrl();
-
-// App configuration
-export const APP_CONFIG = {
-  name: 'Aleyo',
-  version: '1.0.0',
-  apiBase: API_BASE,
-};
+export const API_BASE = getApiUrl();
