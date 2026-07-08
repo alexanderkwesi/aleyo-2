@@ -4,14 +4,17 @@
       "src": "package.json",
       "use": "@vercel/static-build",
       "config": {
-        "distDir": "build"
+        "distDir": "build",
+        "memory": 4096,
+        "timeout": 300
       }
     }
   ],
   "env": {
+    "NODE_OPTIONS": "--max-old-space-size=4096",
     "SKIP_PREFLIGHT_CHECK": "true",
     "CI": "false",
-    "NODE_OPTIONS": "--max-old-space-size=4096"
+    "GENERATE_SOURCEMAP": "false"
   },
   "routes": [
     {
