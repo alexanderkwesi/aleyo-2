@@ -1,28 +1,20 @@
-# ============================================
-# Option 1: Using Render PostgreSQL (EASIEST)
-# ============================================
-# DATABASE_URL will be auto-filled by Render when you create a PostgreSQL DB
-# You don't need to set any other database variables
+services:
+  - type: web
+    name: aleyo-backend
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: aleyo-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      # Add other env vars...
 
-# ============================================
-# Option 2: Using Cloud SQL (Your current setup)
-# ============================================
-GAE_ENV=standard
-CLOUD_SQL_INSTANCE=aleyo-501110:us-central1:free-trial-first-project
-INSTANCE_CONNECTION_NAME=aleyo-501110:us-central1:free-trial-first-project
-DB_USER=free-trial-first-project
-DB_PASS=your-actual-password
-DB_NAME=aleyo
-DB_HOST=127.0.0.1  # For TCP connection
-DB_PORT=5432
-
-# ============================================
-# Common Variables (Both Options)
-# ============================================
-SECRET_KEY=your-production-secret-key
-ANTHROPIC_API_KEY=your-anthropic-key
-GCP_PROJECT_ID=aleyo-501110
-GCP_BUCKET_NAME=alayo-bucket
-GOOGLE_APPLICATION_CREDENTIALS={"type":"service_account",...}  # JSON string
-FRONTEND_URL=https://aleyo-2-six.vercel.app
-SQL_ECHO=false
+databases:
+  - name: aleyo-db
+    plan: starter
+    databaseName: aleyo
+    user: aleyo_user
