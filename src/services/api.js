@@ -1,9 +1,25 @@
 // src/services/api.js
 import axios from 'axios';
 import { authService } from './auth';
-const REACT_APP_API_URL = "https://aleyo-2-six.vercel.app";
+
+// ✅ FIXED: Safe environment variable handling
+const getApiUrl = () => {
+  // Check if process exists (for browser environment)
+  if (typeof process !== 'undefined' && process.env && process.env.REACT_APP_API_URL) {
+    return process.env.REACT_APP_API_URL;
+  }
+  
+  // Production fallback for Vercel
+  if (typeof window !== 'undefined' && window.location && window.location.hostname === 'aleyo-2-six.vercel.app') {
+    return 'https://aleyo-2-1.onrender.com';
+  }
+  
+  // Development fallback
+  return 'http://localhost:10000';
+};
+
 // Base API configuration
-const API_BASE_URL = REACT_APP_API_URL || 'http://127.0.0.1:3001';
+const API_BASE_URL = getApiUrl();
 
 // Create axios instance
 const api = axios.create({
@@ -29,8 +45,6 @@ const processQueue = (error, token = null) => {
   });
   failedQueue = [];
 };
-
-
 
 // Request interceptor - Add token to every request
 api.interceptors.request.use(
@@ -120,7 +134,7 @@ api.interceptors.response.use(
         { headers: { 'Content-Type': 'application/json' } }
       );
 
-      const newToken = response.data.token;
+      const newToken = response.data.token || response.data.access_token;
       const newRefreshToken = response.data.refreshToken;
 
       // Store new tokens
@@ -256,6 +270,86 @@ const apiService = {
   updateUser: async (userId, updates) => {
     try {
       const response = await api.put(`/api/users/${userId}`, updates);
+      return response.data;
+    } catch (error) {
+      throw handleError(error);
+    }
+  },
+
+  // Auth methods
+  login: async (credentials) => {
+    try {
+      const response = await api.post('/api/auth/login', credentials);
+      if (response.data.access_token) {
+        localStorage.setItem('authToken', response.data.access_token);
+        if (response.data.refresh_token) {
+          localStorage.setItem('refreshToken', response.data.refresh_token);
+        }
+        if (response.data.user) {
+          localStorage.setItem('user', JSON.stringify(response.data.user));
+        }
+      }
+      return response.data;
+    } catch (error) {
+      throw handleError(error);
+    }
+  },
+
+  signup: async (userData) => {
+    try {
+      const response = await api.post('/api/auth/signup', userData);
+      if (response.data.access_token) {
+        localStorage.setItem('authToken', response.data.access_token);
+        if (response.data.refresh_token) {
+          localStorage.setItem('refreshToken', response.data.refresh_token);
+        }
+        if (response.data.user) {
+          localStorage.setItem('user', JSON.stringify(response.data.user));
+        }
+      }
+      return response.data;
+    } catch (error) {
+      throw handleError(error);
+    }
+  },
+
+  logout: async () => {
+    try {
+      await api.post('/api/auth/logout');
+    } catch (error) {
+      // Ignore logout errors
+      console.warn('Logout error:', error);
+    } finally {
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('user');
+    }
+  },
+
+  getCurrentUser: async () => {
+    try {
+      const response = await api.get('/api/auth/me');
+      return response.data;
+    } catch (error) {
+      throw handleError(error);
+    }
+  },
+
+  forgotPassword: async (email) => {
+    try {
+      const response = await api.post('/api/auth/forgot-password', { email });
+      return response.data;
+    } catch (error) {
+      throw handleError(error);
+    }
+  },
+
+  resetPassword: async (token, newPassword) => {
+    try {
+      const response = await api.post('/api/auth/reset-password', {
+        token,
+        new_password: newPassword,
+      });
       return response.data;
     } catch (error) {
       throw handleError(error);
