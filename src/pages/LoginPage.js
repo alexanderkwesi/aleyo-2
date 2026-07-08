@@ -22,8 +22,24 @@ const G_START = '#4F6EF7';
 const G_MID = '#2DBCB6';
 const G_END = '#3ED67C';
 const GRAD = `linear-gradient(135deg, ${G_START} 0%, ${G_MID} 50%, ${G_END} 100%)`;
-//const REACT_APP_API_URL = "https://aleyo-2-six.vercel.app";
-const API_BASE = process.env.REACT_APP_API_URL || 'https://aleyo-2-1.onrender.com';
+
+// ✅ FIXED: Safe environment variable handling
+const getApiUrl = () => {
+  // Check if process exists (for browser environment)
+  if (typeof process !== 'undefined' && process.env && process.env.REACT_APP_API_URL) {
+    return process.env.REACT_APP_API_URL;
+  }
+  
+  // Production fallback for Vercel
+  if (typeof window !== 'undefined' && window.location && window.location.hostname === 'aleyo-2-six.vercel.app') {
+    return 'https://aleyo-2-1.onrender.com';
+  }
+  
+  // Development fallback
+  return 'http://localhost:10000';
+};
+
+const API_BASE = getApiUrl();
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -69,6 +85,8 @@ const LoginPage = () => {
     setError('');
 
     try {
+      console.log('Login attempt to:', `${API_BASE}/api/auth/login`);
+      
       const res = await fetch(`${API_BASE}/api/auth/login`, {
         method: 'POST',
         headers: {
@@ -88,6 +106,8 @@ const LoginPage = () => {
           setError('Invalid email or password');
         } else if (res.status === 429) {
           setError('Too many login attempts. Please try again later.');
+        } else if (res.status === 500) {
+          setError('Server error. Please try again later.');
         } else {
           setError(data.detail || 'Login failed. Please try again.');
         }
@@ -109,9 +129,9 @@ const LoginPage = () => {
           id: data.user.id,
           name: data.user.name,
           email: data.user.email,
-          credits: data.user.credits,
+          credits: data.user.credits || 0,
           created_at: data.user.created_at,
-          subscription_tier: data.user.subscription_tier,
+          subscription_tier: data.user.subscription_tier || 'free',
         };
 
         // Authenticate user - this updates both token and user state
@@ -250,6 +270,7 @@ const LoginPage = () => {
                     <IconButton
                       onClick={() => setShowPassword(!showPassword)}
                       sx={{ color: 'rgba(255,255,255,0.5)' }}
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
                     >
                       {showPassword ? <VisibilityOff /> : <Visibility />}
                     </IconButton>
