@@ -1,68 +1,60 @@
-# database.py — Cloud SQL with Python Connector (Best for Render)
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
-from google.cloud.sql.connector import Connector
+# database.py - Modified to work without google-cloud-sql-connector
 import os
+from sqlalchemy import create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+import logging
 
-# ─────────────────────────────────────────────
-# Configuration from environment variables
-# ─────────────────────────────────────────────
-INSTANCE_CONNECTION_NAME = "aleyo-501110:us-central1:free-trial-first-project"
-DB_USER = "free-trial-first-project"                   # e.g. postgres
-DB_PASS = ""                    # your database password
-DB_NAME = "aleyo.db"                   # e.g. aleyo_db
+logger = logging.getLogger(__name__)
 
-# Validate required env vars
-required_vars = ["INSTANCE_CONNECTION_NAME", "DB_USER", "DB_PASS", "DB_NAME"]
-missing = [v for v in required_vars if not os.getenv(v)]
-if missing:
-    raise ValueError(f"Missing required environment variables: {', '.join(missing)}")
-
-# ─────────────────────────────────────────────
-# Cloud SQL Connector Setup
-# ─────────────────────────────────────────────
-connector = Connector()
-
-def getconn():
-    """Create a new database connection using the Cloud SQL Python Connector."""
-    conn = connector.connect(
-        INSTANCE_CONNECTION_NAME,
-        "pg8000",  # PostgreSQL driver — pure Python, works well with SQLAlchemy
-        user=DB_USER,
-        password=DB_PASS,
-        db=DB_NAME,
-        ip_type="public",  # Use "private" if you have a private IP configured
-    )
-    return conn
-
-# ─────────────────────────────────────────────
-# SQLAlchemy Engine & Session
-# ─────────────────────────────────────────────
-engine = create_engine(
-    "postgresql+pg8000://",  # dialect+driver — connection is handled by `creator`
-    creator=getconn,
-    pool_pre_ping=True,      # verifies connections before using them from the pool
-    pool_recycle=3600,       # recycle connections after 1 hour
-    echo=False               # set to True for SQL debugging
-)
-
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# Create Base for models
 Base = declarative_base()
 
-# ─────────────────────────────────────────────
-# Dependency for FastAPI
-# ─────────────────────────────────────────────
+def get_database_url():
+    """Get the database URL based on environment"""
+    
+    # 1. Check if DATABASE_URL is provided (Render PostgreSQL)
+    database_url = os.getenv("DATABASE_URL")
+    if database_url:
+        logger.info("Using DATABASE_URL from environment (Render PostgreSQL)")
+        return database_url
+    
+    # 2. For local development - use SQLite
+    db_path = os.getenv("LOCAL_DB_PATH", "./aleyo.db")
+    logger.info(f"Using SQLite database at: {db_path}")
+    return f"sqlite:///{db_path}?check_same_thread=False"
+
+# Create engine
+DATABASE_URL = get_database_url()
+
+# Configure engine based on database type
+if "sqlite" in DATABASE_URL:
+    engine = create_engine(
+        DATABASE_URL,
+        connect_args={"check_same_thread": False},
+        echo=os.getenv("SQL_ECHO", "False").lower() == "true"
+    )
+else:
+    # For PostgreSQL (Render or Cloud SQL without connector)
+    engine = create_engine(
+        DATABASE_URL,
+        pool_size=int(os.getenv("DB_POOL_SIZE", "10")),
+        max_overflow=int(os.getenv("DB_MAX_OVERFLOW", "20")),
+        pool_pre_ping=True,
+        pool_recycle=int(os.getenv("DB_POOL_RECYCLE", "3600")),
+        echo=os.getenv("SQL_ECHO", "False").lower() == "true"
+    )
+
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
 def get_db():
-    """Yield a database session for FastAPI dependency injection."""
     db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
 
-# ─────────────────────────────────────────────
-# Database Initialization
-# ─────────────────────────────────────────────
 def init_db():
-    """Create all tables defined in your models."""
+    """Initialize database - creates all tables"""
     Base.metadata.create_all(bind=engine)
+    logger.info("Database initialized successfully")
