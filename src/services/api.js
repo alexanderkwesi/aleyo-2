@@ -603,7 +603,7 @@ apiService.removeAuthToken = () => {
 };
 
 // ✅ EXPORT all services
-export { 
+export default { 
   api, 
   apiService, 
   projectService, 
