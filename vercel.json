@@ -8,10 +8,19 @@
       }
     }
   ],
+  "env": {
+    "SKIP_PREFLIGHT_CHECK": "true",
+    "CI": "false",
+    "NODE_OPTIONS": "--max-old-space-size=4096"
+  },
   "routes": [
     {
       "src": "/manifest.json",
       "dest": "/manifest.json"
+    },
+    {
+      "src": "/static/(.*)",
+      "dest": "/static/$1"
     },
     {
       "src": "/(.*)",
