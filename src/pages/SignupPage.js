@@ -21,7 +21,6 @@ import { useAuth } from '../context/AuthContext';
 const G_START = '#4F6EF7';
 const G_END = '#3ED67C';
 const GRAD = `linear-gradient(135deg, ${G_START} 0%, #2DBCB6 50%, ${G_END} 100%)`;
-//const REACT_APP_API_URL = "https://aleyo-2-six.vercel.app";
 const API_BASE = process.env.REACT_APP_API_URL || 'https://aleyo-2-1.onrender.com';
 
 const SignupPage = () => {
@@ -119,8 +118,8 @@ const SignupPage = () => {
         // Show success message (optional)
         console.log('Signup successful! Welcome', userData.name);
 
-        // Navigate to dashboard
-        navigate('/login');
+        // ✅ FIXED: Navigate to dashboard directly after signup
+        navigate('/dashboard');
       } else {
         setError('Invalid server response. Please try again.');
         setLoading(false);
