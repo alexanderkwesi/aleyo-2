@@ -21,7 +21,24 @@ import { useAuth } from '../context/AuthContext';
 const G_START = '#4F6EF7';
 const G_END = '#3ED67C';
 const GRAD = `linear-gradient(135deg, ${G_START} 0%, #2DBCB6 50%, ${G_END} 100%)`;
-const API_BASE = process.env.REACT_APP_API_URL || 'https://aleyo-2-1.onrender.com';
+
+// ✅ FIXED: Safe environment variable handling
+const getApiUrl = () => {
+  // Check if process exists (for browser environment)
+  if (typeof process !== 'undefined' && process.env && process.env.REACT_APP_API_URL) {
+    return process.env.REACT_APP_API_URL;
+  }
+  
+  // Production fallback
+  if (typeof window !== 'undefined' && window.location && window.location.hostname === 'aleyo-2-six.vercel.app') {
+    return 'https://aleyo-2-1.onrender.com';
+  }
+  
+  // Development fallback
+  return 'http://localhost:10000';
+};
+
+const API_BASE = getApiUrl();
 
 const SignupPage = () => {
   const navigate = useNavigate();
@@ -71,6 +88,8 @@ const SignupPage = () => {
     setError('');
 
     try {
+      console.log('Signup attempt to:', `${API_BASE}/api/auth/signup`);
+      
       const res = await fetch(`${API_BASE}/api/auth/signup`, {
         method: 'POST',
         headers: {
@@ -93,6 +112,8 @@ const SignupPage = () => {
           );
         } else if (res.status === 429) {
           setError('Too many signup attempts. Please try again later.');
+        } else if (res.status === 500) {
+          setError('Server error. Please try again later.');
         } else {
           setError(data.detail || 'Registration failed. Please try again.');
         }
@@ -107,9 +128,9 @@ const SignupPage = () => {
           id: data.user.id,
           name: data.user.name,
           email: data.user.email,
-          credits: data.user.credits,
+          credits: data.user.credits || 50,
           created_at: data.user.created_at,
-          subscription_tier: data.user.subscription_tier,
+          subscription_tier: data.user.subscription_tier || 'free',
         };
 
         // Log the user in (this updates both token and user state)
@@ -118,7 +139,7 @@ const SignupPage = () => {
         // Show success message (optional)
         console.log('Signup successful! Welcome', userData.name);
 
-        // ✅ FIXED: Navigate to dashboard directly after signup
+        // Navigate to dashboard directly after signup
         navigate('/dashboard');
       } else {
         setError('Invalid server response. Please try again.');
