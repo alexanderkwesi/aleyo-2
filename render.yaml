@@ -1,50 +1,28 @@
-# render.yaml - For Render Blueprint deployment
-services:
-  - type: web
-    name: aleyo-backend
-    runtime: python
-    plan: starter  # or free, professional, etc.
-    
-    # Build and start commands
-    buildCommand: |
-      pip install -r requirements.txt
-      # Any other build steps
-    
-    startCommand: |
-      uvicorn app:app --host 0.0.0.0 --port $PORT
-    
-    # Environment variables
-    envVars:
-      - key: PYTHON_VERSION
-        value: 3.11.0
-      - key: DATABASE_URL
-        fromDatabase:
-          name: aleyo-db
-          property: connectionString
-      - key: SECRET_KEY
-        generateValue: true
-      - key: ANTHROPIC_API_KEY
-        sync: false  # Will be set manually
-      - key: GCP_PROJECT_ID
-        sync: false
-      - key: GCP_BUCKET_NAME
-        sync: false
-      - key: GOOGLE_APPLICATION_CREDENTIALS
-        sync: false
-      - key: INSTANCE_CONNECTION_NAME
-        sync: false
-      - key: DB_USER
-        sync: false
-      - key: DB_PASS
-        sync: false
-      - key: DB_NAME
-        sync: false
-      - key: FRONTEND_URL
-        sync: false
-    
-    # Health check
-    healthCheckPath: /health
-    
-    # Auto-scaling (for paid plans)
-    # numInstances: 1
-    # maxScale: 2
+# ============================================
+# Option 1: Using Render PostgreSQL (EASIEST)
+# ============================================
+# DATABASE_URL will be auto-filled by Render when you create a PostgreSQL DB
+# You don't need to set any other database variables
+
+# ============================================
+# Option 2: Using Cloud SQL (Your current setup)
+# ============================================
+GAE_ENV=standard
+CLOUD_SQL_INSTANCE=aleyo-501110:us-central1:free-trial-first-project
+INSTANCE_CONNECTION_NAME=aleyo-501110:us-central1:free-trial-first-project
+DB_USER=free-trial-first-project
+DB_PASS=your-actual-password
+DB_NAME=aleyo
+DB_HOST=127.0.0.1  # For TCP connection
+DB_PORT=5432
+
+# ============================================
+# Common Variables (Both Options)
+# ============================================
+SECRET_KEY=your-production-secret-key
+ANTHROPIC_API_KEY=your-anthropic-key
+GCP_PROJECT_ID=aleyo-501110
+GCP_BUCKET_NAME=alayo-storage
+GOOGLE_APPLICATION_CREDENTIALS={"type":"service_account",...}  # JSON string
+FRONTEND_URL=https://aleyo-2-six.vercel.app
+SQL_ECHO=false
