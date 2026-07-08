@@ -1,5 +1,7 @@
 # app.py - Complete GCS Storage Integration with Database
-from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect, Depends, status, File, UploadFile, Form
+# Fully configured for Render deployment
+
+from fastapi import FastAPI, HTTPException, Request, Depends, status, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import List, Dict, Optional, Any
@@ -26,15 +28,25 @@ import bcrypt
 import os
 import anthropic
 
-# Import routers
-from seed_integrations import router as integrations_router
-import seed_integrations
-from pricing import router as pricing_router
+# ==================== Import Routers ====================
+try:
+    from seed_integrations import router as integrations_router
+    import seed_integrations
+except ImportError:
+    integrations_router = None
+    seed_integrations = None
+    print("Warning: seed_integrations module not found")
 
-# Import database utilities
+try:
+    from pricing import router as pricing_router
+except ImportError:
+    pricing_router = None
+    print("Warning: pricing module not found")
+
+# ==================== Import Database ====================
 from database import get_db, init_db
 
-# Import models - FIXED: Added proper import handling
+# ==================== Import Models ====================
 try:
     from models import (
         User, Project, CreditTransaction, Integration, 
@@ -45,15 +57,15 @@ try:
     )
 except ImportError as e:
     print(f"Warning: Could not import models: {e}")
-    # Create placeholder models for development if needed
-    from sqlalchemy.ext.declarative import declarative_base
-    Base = declarative_base()
+    # Create placeholder models
+    from sqlalchemy import Column, String, Integer, DateTime, JSON, Text, Boolean, Float
+    from database import Base
     
     class User(Base):
         __tablename__ = "users"
         id = Column(String, primary_key=True)
         name = Column(String)
-        email = Column(String)
+        email = Column(String, unique=True)
         password_hash = Column(String)
         credits_balance = Column(Integer, default=50)
         subscription_tier = Column(String, default="free")
@@ -75,7 +87,15 @@ except ImportError as e:
         created_at = Column(DateTime, default=datetime.now(timezone.utc))
         updated_at = Column(DateTime, default=datetime.now(timezone.utc))
     
-    # Add other placeholder models as needed
+    class CreditTransaction(Base):
+        __tablename__ = "credit_transactions"
+        id = Column(String, primary_key=True)
+        user_id = Column(String)
+        amount = Column(Integer)
+        type = Column(String)
+        description = Column(String)
+        created_at = Column(DateTime, default=datetime.now(timezone.utc))
+    
     project_designs = None  # Placeholder
 
 # ==================== Import Storage ====================
@@ -83,7 +103,6 @@ try:
     from storage import upload_file_to_gcs, delete_file_from_gcs, get_gcs_client
 except ImportError:
     print("Warning: storage module not found. File upload features will be disabled.")
-    # Create placeholder functions
     def upload_file_to_gcs(file, blob_path):
         raise NotImplementedError("Storage module not configured")
     def delete_file_from_gcs(file_path):
@@ -93,7 +112,11 @@ except ImportError:
 
 # ==================== App Initialization ====================
 
-app = FastAPI(title="Aleyo AI Website Builder API")
+app = FastAPI(
+    title="Aleyo AI Website Builder API",
+    version="1.0.0",
+    description="API for Aleyo Website Builder - Deployed on Render"
+)
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -107,7 +130,10 @@ app.add_middleware(SlowAPIMiddleware)
 
 @app.exception_handler(RateLimitExceeded)
 async def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded):
-    return JSONResponse(status_code=429, content={"detail": "Login attempts exceeded. Please try again later."})
+    return JSONResponse(
+        status_code=429, 
+        content={"detail": "Rate limit exceeded. Please try again later."}
+    )
 
 # ==================== Security ====================
 
@@ -123,9 +149,11 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-3-sonnet-20240229")
 anthropic_client = None
+
 if ANTHROPIC_API_KEY:
     try:
         anthropic_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+        logger.info("Anthropic client initialized successfully")
     except Exception as e:
         logger.warning(f"Failed to initialize Anthropic client: {e}")
 else:
@@ -133,19 +161,24 @@ else:
 
 # ==================== CORS Configuration ====================
 
+# Get frontend URL from environment
+FRONTEND_URL = os.getenv("FRONTEND_URL", "")
+
 ALLOWED_ORIGINS = [
-    "http://127.0.0.1:4000",
-    "http://127.0.0.1:8000",
     "http://localhost:3000",
-    "http://127.0.0.1:3001",
     "http://localhost:3001",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:3001",
     "https://aleyo-2.vercel.app",
-    "https://aleyo-2-1.onrender.com"
+    "https://aleyo-2-1.onrender.com",
 ]
 
-_frontend_url = os.getenv("FRONTEND_URL", "")
-if _frontend_url:
-    ALLOWED_ORIGINS.append(_frontend_url)
+# Add FRONTEND_URL if set
+if FRONTEND_URL:
+    ALLOWED_ORIGINS.append(FRONTEND_URL)
+
+# Remove duplicates and empty strings
+ALLOWED_ORIGINS = list(set([origin for origin in ALLOWED_ORIGINS if origin]))
 
 app.add_middleware(
     CORSMiddleware,
@@ -157,22 +190,75 @@ app.add_middleware(
 
 # ==================== Include Routers ====================
 
-try:
-    app.include_router(integrations_router, prefix="/api")
-    app.include_router(pricing_router, prefix="/api")
-except Exception as e:
-    logger.warning(f"Could not include routers: {e}")
+if integrations_router:
+    try:
+        app.include_router(integrations_router, prefix="/api")
+        logger.info("Integrations router included")
+    except Exception as e:
+        logger.warning(f"Could not include integrations router: {e}")
+
+if pricing_router:
+    try:
+        app.include_router(pricing_router, prefix="/api")
+        logger.info("Pricing router included")
+    except Exception as e:
+        logger.warning(f"Could not include pricing router: {e}")
+
+# ==================== ROOT ENDPOINTS ====================
+
+@app.get("/")
+async def root():
+    """Root endpoint - displays API info"""
+    return {
+        "message": "Aleyo AI Website Builder API",
+        "version": "1.0.0",
+        "status": "operational",
+        "docs": "/docs",
+        "redoc": "/redoc",
+        "health": "/health",
+        "environment": "production" if os.getenv("RENDER") else "development",
+        "endpoints": {
+            "auth": "/api/auth/...",
+            "projects": "/api/projects/...",
+            "credits": "/api/credits/...",
+            "upload": "/api/upload/..."
+        }
+    }
+
+@app.get("/health")
+async def health_check(db: Session = Depends(get_db)):
+    """Health check endpoint for Render"""
+    try:
+        # Test database connection
+        db.execute(text("SELECT 1"))
+        db_status = "connected"
+    except Exception as e:
+        db_status = f"error: {str(e)}"
+    
+    return {
+        "status": "healthy",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "database": db_status,
+        "environment": "production" if os.getenv("RENDER") else "development",
+        "render": os.getenv("RENDER", "false"),
+        "port": os.getenv("PORT", "not set"),
+        "service": "aleyo-backend"
+    }
 
 # ==================== Startup Event ====================
 
 @app.on_event("startup")
 async def startup_event():
+    """Initialize database on startup"""
     try:
         init_db()
         logger.info("Database initialized successfully")
     except Exception as e:
         logger.error(f"Database initialization failed: {e}")
-    logger.info("Application started successfully")
+    
+    logger.info(f"Application started on Render: {os.getenv('RENDER', 'False')}")
+    logger.info(f"Port: {os.getenv('PORT', 'Not set')}")
+    logger.info(f"Environment: {'production' if os.getenv('RENDER') else 'development'}")
 
 # ==================== Pydantic Models ====================
 
@@ -211,46 +297,6 @@ class ResetPasswordRequest(BaseModel):
     token: str
     new_password: str
 
-class DesignComponentModel(BaseModel):
-    id: str
-    type: str
-    styles: Dict[str, Any]
-    content: Dict[str, Any]
-
-class DesignTemplateModel(BaseModel):
-    id: str
-    name: str
-    category: str
-    layout: Dict[str, Any]
-    styles: Dict[str, Any]
-    components: List[DesignComponentModel]
-
-class WebsiteProject(BaseModel):
-    id: str
-    name: str
-    designs: List[str]
-    customizations: Dict[str, Any]
-    html_code: Optional[str] = None
-    created_at: datetime
-    updated_at: datetime
-    user_id: str
-    published_url: Optional[str] = None
-    
-class WebsitePublishRequest(BaseModel):
-    id: str
-    name: str
-    slug: str
-    components: List[Dict[str, Any]] = []
-    textElements: List[Dict[str, Any]] = []
-    imageElements: List[Dict[str, Any]] = []
-    uploadedImages: List[Dict[str, Any]] = []
-    styles: Dict[str, Any] = {}
-    lastEdited: str
-    type: str = "custom"
-    status: str = "published"
-    publishedAt: str
-    publishedUrl: str
-
 class ProjectCreate(BaseModel):
     name: str
     designs: List[str] = []
@@ -271,266 +317,6 @@ class CreditPurchase(BaseModel):
     amount: int
     payment_method: str
 
-class IntegrationConnectRequest(BaseModel):
-    project_id: str
-    config_data: Dict[str, Any] = {}
-
-class VoiceCommandRequest(BaseModel):
-    command: str
-    context: Optional[str] = "home"
-    studio_state: Optional[Dict[str, Any]] = None
-
-class VoiceCommandResponse(BaseModel):
-    reply: str
-    action: Optional[Dict[str, Any]] = None
-    transform: Optional[Dict[str, Any]] = None
-    
-# ==================== Tutorial Models ====================
-
-class TutorialCategory(str, Enum):
-    BEGINNER = "beginner"
-    DESIGN = "design"
-    ADVANCED = "advanced"
-    SEO = "seo"
-    ECOMMERCE = "ecommerce"
-    PERFORMANCE = "performance"
-    AI = "ai"
-    INTEGRATIONS = "integrations"
-    MARKETING = "marketing"
-    ANALYTICS = "analytics"
-
-class TutorialLevel(str, Enum):
-    BEGINNER = "Beginner"
-    INTERMEDIATE = "Intermediate"
-    ADVANCED = "Advanced"
-    EXPERT = "Expert"
-
-class TutorialStatus(str, Enum):
-    DRAFT = "draft"
-    PUBLISHED = "published"
-    ARCHIVED = "archived"
-
-class TutorialBase(BaseModel):
-    title: str
-    description: Optional[str] = None
-    category: TutorialCategory
-    level: TutorialLevel = TutorialLevel.BEGINNER
-    duration: Optional[str] = None
-    duration_seconds: int = 0
-    rating: float = 4.5
-    views: int = 0
-    likes: int = 0
-    thumbnail_url: Optional[str] = None
-    video_url: Optional[str] = None
-    video_embed_code: Optional[str] = None
-    video_file_path: Optional[str] = None
-    sections: List[Dict[str, Any]] = []
-    icon: str = "PlayCircle"
-    tags: List[str] = []
-    prerequisites: List[str] = []
-    is_premium: bool = False
-    status: TutorialStatus = TutorialStatus.PUBLISHED
-    created_by: Optional[str] = None
-
-class TutorialCreate(TutorialBase):
-    pass
-
-class TutorialUpdate(BaseModel):
-    title: Optional[str] = None
-    description: Optional[str] = None
-    category: Optional[TutorialCategory] = None
-    level: Optional[TutorialLevel] = None
-    duration: Optional[str] = None
-    duration_seconds: Optional[int] = None
-    rating: Optional[float] = None
-    views: Optional[int] = None
-    likes: Optional[int] = None
-    thumbnail_url: Optional[str] = None
-    video_url: Optional[str] = None
-    video_embed_code: Optional[str] = None
-    video_file_path: Optional[str] = None
-    sections: Optional[List[Dict[str, Any]]] = None
-    icon: Optional[str] = None
-    tags: Optional[List[str]] = None
-    prerequisites: Optional[List[str]] = None
-    is_premium: Optional[bool] = None
-    status: Optional[TutorialStatus] = None
-
-class TutorialResponse(TutorialBase):
-    id: str
-    created_at: datetime
-    updated_at: datetime
-    
-    class Config:
-        from_attributes = True
-
-class TutorialCompletionBase(BaseModel):
-    tutorial_id: str
-    user_id: str
-
-class TutorialCompletionCreate(TutorialCompletionBase):
-    pass
-
-class TutorialCompletionResponse(TutorialCompletionBase):
-    id: str
-    completed_at: datetime
-    
-    class Config:
-        from_attributes = True
-
-class UserTutorialProgressBase(BaseModel):
-    tutorial_id: str
-    user_id: str
-    current_section: int = 0
-    completed_sections: List[int] = []
-    progress_percentage: int = 0
-    started_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    completed_at: Optional[datetime] = None
-
-class UserTutorialProgressCreate(UserTutorialProgressBase):
-    pass
-
-class UserTutorialProgressUpdate(BaseModel):
-    current_section: Optional[int] = None
-    completed_sections: Optional[List[int]] = None
-    progress_percentage: Optional[int] = None
-    completed_at: Optional[datetime] = None
-
-class TutorialProgressUpdate(BaseModel):
-    current_section: int = 0
-    completed_sections: List[int] = []
-    progress_percentage: int = 0
-
-class UserTutorialProgressResponse(UserTutorialProgressBase):
-    id: str
-    last_watched_at: datetime
-    
-    class Config:
-        from_attributes = True
-
-class TutorialViewBase(BaseModel):
-    tutorial_id: str
-    user_id: Optional[str] = None
-    ip_address: Optional[str] = None
-    user_agent: Optional[str] = None
-    duration_watched: int = 0
-
-class TutorialViewCreate(TutorialViewBase):
-    pass
-
-class TutorialViewResponse(TutorialViewBase):
-    id: str
-    viewed_at: datetime
-    
-    class Config:
-        from_attributes = True
-
-class TutorialCommentBase(BaseModel):
-    tutorial_id: str
-    user_id: str
-    content: str
-
-class TutorialCommentCreate(TutorialCommentBase):
-    pass
-
-class TutorialCommentUpdate(BaseModel):
-    content: str
-
-class TutorialCommentResponse(TutorialCommentBase):
-    id: str
-    created_at: datetime
-    updated_at: datetime
-    
-    class Config:
-        from_attributes = True
-
-class TutorialLikeBase(BaseModel):
-    tutorial_id: str
-    user_id: str
-    liked: bool = True
-
-class TutorialLikeCreate(TutorialLikeBase):
-    pass
-
-class TutorialLikeResponse(TutorialLikeBase):
-    id: str
-    created_at: datetime
-    
-    class Config:
-        from_attributes = True
-
-class TutorialBookmarkBase(BaseModel):
-    tutorial_id: str
-    user_id: str
-
-class TutorialBookmarkCreate(TutorialBookmarkBase):
-    pass
-
-class TutorialBookmarkResponse(TutorialBookmarkBase):
-    id: str
-    created_at: datetime
-    
-    class Config:
-        from_attributes = True
-
-class TutorialCategoryModelBase(BaseModel):
-    name: str
-    display_name: str
-    description: Optional[str] = None
-    icon: str = "VideoLibrary"
-    color: str = "#4F6EF7"
-    sort_order: int = 0
-    is_active: bool = True
-
-class TutorialCategoryModelCreate(TutorialCategoryModelBase):
-    pass
-
-class TutorialCategoryModelUpdate(BaseModel):
-    name: Optional[str] = None
-    display_name: Optional[str] = None
-    description: Optional[str] = None
-    icon: Optional[str] = None
-    color: Optional[str] = None
-    sort_order: Optional[int] = None
-    is_active: Optional[bool] = None
-
-class TutorialCategoryModelResponse(TutorialCategoryModelBase):
-    id: str
-    created_at: datetime
-    updated_at: datetime
-    
-    class Config:
-        from_attributes = True
-
-class TutorialTagBase(BaseModel):
-    name: str
-    slug: str
-
-class TutorialTagCreate(TutorialTagBase):
-    pass
-
-class TutorialTagResponse(TutorialTagBase):
-    id: str
-    created_at: datetime
-    
-    class Config:
-        from_attributes = True
-
-class TutorialTagMappingBase(BaseModel):
-    tutorial_id: str
-    tag_id: str
-
-class TutorialTagMappingCreate(TutorialTagMappingBase):
-    pass
-
-class TutorialTagMappingResponse(TutorialTagMappingBase):
-    id: str
-    
-    class Config:
-        from_attributes = True
-
-# ==================== File Upload Models ====================
-
 class FileUploadResponse(BaseModel):
     success: bool
     file_url: str
@@ -543,22 +329,10 @@ class FileDeleteResponse(BaseModel):
     success: bool
     message: str
 
-# ==================== Database File Tracking Model ====================
-
-class UploadedFile(BaseModel):
-    id: str
-    user_id: str
-    project_id: Optional[str] = None
-    file_name: str
-    file_url: str
-    file_path: str
-    file_size: int
-    content_type: str
-    created_at: datetime
-
 # ==================== Helper Functions ====================
 
 def create_access_token(data: dict) -> str:
+    """Create JWT access token"""
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
@@ -568,6 +342,7 @@ async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db)
 ):
+    """Get current authenticated user"""
     token = credentials.credentials
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
@@ -591,52 +366,60 @@ async def get_current_user(
         )
     return user
 
-# FIXED: Only override if seed_integrations has the placeholder function
+# Override dependency for seed_integrations if available
 try:
-    if hasattr(seed_integrations, 'get_current_user_placeholder'):
+    if seed_integrations and hasattr(seed_integrations, 'get_current_user_placeholder'):
         app.dependency_overrides[seed_integrations.get_current_user_placeholder] = get_current_user
 except:
     pass
 
 def hash_password(password: str) -> str:
+    """Hash password using bcrypt"""
     return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 def verify_password(plain: str, hashed: str) -> bool:
+    """Verify password against hash"""
     return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
 
 def deduct_credits(db: Session, user_id: str, amount: int) -> bool:
+    """Deduct credits from user"""
     user = db.query(User).filter(User.id == user_id).first()
     if user and user.credits_balance >= amount:
-        # FIXED: Check if CreditTransaction model exists
         try:
+            # Try to create transaction record
             transaction = CreditTransaction(
+                id=str(uuid.uuid4()),
                 user_id=user_id,
                 amount=-amount,
                 type="usage",
                 description="Website building usage"
             )
             db.add(transaction)
+            user.credits_balance -= amount
             db.commit()
             db.refresh(user)
             return True
         except:
-            # If CreditTransaction doesn't exist, just deduct credits
+            # Fallback: just deduct credits
             user.credits_balance -= amount
             db.commit()
             return True
     return False
 
 def add_credits(db: Session, user_id: str, amount: int, description: str = "Credit purchase"):
+    """Add credits to user"""
     user = db.query(User).filter(User.id == user_id).first()
     if user:
         try:
             transaction = CreditTransaction(
+                id=str(uuid.uuid4()),
                 user_id=user_id,
                 amount=amount,
                 type="purchase",
                 description=description
             )
             db.add(transaction)
+            user.credits_balance += amount
             db.commit()
             db.refresh(user)
             return True
@@ -646,179 +429,18 @@ def add_credits(db: Session, user_id: str, amount: int, description: str = "Cred
             return True
     return False
 
-def generate_html_from_designs(designs: List[Dict], customizations: Dict, project_name: str) -> str:
-    """Generate HTML from merged designs"""
-    merged_styles = {}
-    merged_components = []
-    
-    for design in designs:
-        for key, value in design.get("styles", {}).items():
-            merged_styles[key] = value
-        merged_components.extend(design.get("components", []))
-    
-    if customizations and "styles" in customizations:
-        merged_styles.update(customizations["styles"])
-    
-    components_html = ""
-    for component in merged_components:
-        components_html += generate_component_html(component, merged_styles)
-    
-    return f"""
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>{project_name}</title>
-        <style>
-            * {{
-                margin: 0;
-                padding: 0;
-                box-sizing: border-box;
-            }}
-            
-            body {{
-                font-family: {merged_styles.get('font_family', 'Inter, sans-serif')};
-                background: {merged_styles.get('background_color', '#0F172A')};
-                color: {merged_styles.get('text_color', '#FFFFFF')};
-            }}
-            
-            .container {{
-                max-width: 1200px;
-                margin: 0 auto;
-                padding: 20px;
-            }}
-            
-            .hero {{
-                background: linear-gradient(135deg, {merged_styles.get('primary_color', '#3B82F6')}, {merged_styles.get('secondary_color', '#10B981')});
-                padding: 80px 20px;
-                text-align: center;
-                border-radius: {merged_styles.get('border_radius', '8px')};
-            }}
-            
-            button {{
-                background: {merged_styles.get('primary_color', '#3B82F6')};
-                color: white;
-                border: none;
-                padding: 12px 24px;
-                border-radius: {merged_styles.get('border_radius', '8px')};
-                cursor: pointer;
-                font-size: 16px;
-            }}
-            
-            button:hover {{
-                opacity: 0.9;
-            }}
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            {components_html}
-        </div>
-        <script>
-            console.log('Website built with Aleyo AI Website Builder');
-        </script>
-    </body>
-    </html>
-    """
-
-def generate_component_html(component: Dict, styles: Dict) -> str:
-    comp_type = component.get("type", "")
-    content = component.get("content", {})
-    
-    if comp_type == "hero":
-        return f"""
-        <div class="hero">
-            <h1>{content.get('title', 'Welcome to Your Website')}</h1>
-            <p>{content.get('subtitle', 'Create something amazing')}</p>
-            <button>{content.get('buttonText', 'Get Started')}</button>
-        </div>
-        """
-    
-    return ""
-
-def generate_integration_code(config: IntegrationConfig) -> str:
-    if config.type == "forms":
-        if config.provider == "formspree":
-            return f"""
-            <form action="https://formspree.io/f/{config.api_key}" method="POST">
-                <input type="email" name="email" placeholder="Your email" required>
-                <textarea name="message" placeholder="Your message" required></textarea>
-                <button type="submit">Send Message</button>
-            </form>
-            """
-    
-    elif config.type == "payment":
-        if config.provider == "stripe":
-            return f"""
-            <script src="https://js.stripe.com/v3/"></script>
-            <div id="payment-element"></div>
-            <button id="payment-button">Pay Now</button>
-            <script>
-                const stripe = Stripe('{config.api_key}');
-            </script>
-            """
-    
-    elif config.type == "email":
-        if config.provider == "mailchimp":
-            dc = config.settings.get('dc', 'usX')
-            return f"""
-            <div id="mc_embed_signup">
-                <form action="https://{dc}.list-manage.com/subscribe/post" method="POST">
-                    <input type="email" name="EMAIL" placeholder="Subscribe to newsletter" required>
-                    <button type="submit">Subscribe</button>
-                </form>
-            </div>
-            """
-    
-    elif config.type == "calendar":
-        if config.provider == "calendly":
-            username = config.settings.get('username', '')
-            return f"""
-            <link href="https://assets.calendly.com/assets/external/widget.css" rel="stylesheet">
-            <script src="https://assets.calendly.com/assets/external/widget.js" type="text/javascript" async></script>
-            <div class="calendly-inline-widget" data-url="https://calendly.com/{username}" style="min-width:320px;height:630px;"></div>
-            """
-    
-    elif config.type == "ads":
-        if config.provider == "google_ads":
-            return f"""
-            <script async src="https://www.googletagmanager.com/gtag/js?id={config.api_key}"></script>
-            <script>
-                window.dataLayer = window.dataLayer || [];
-                function gtag(){{dataLayer.push(arguments);}}
-                gtag('js', new Date());
-                gtag('config', '{config.api_key}');
-            </script>
-            """
-        elif config.provider == "meta_ads":
-            return f"""
-            <script>
-                !function(f,b,e,v,n,t,s)
-                {{if(f.fbq)return;n=f.fbq=function(){{n.callMethod?
-                n.callMethod.apply(n,arguments):n.queue.push(arguments)}};
-                if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-                n.queue=[];t=b.createElement(e);t.async=!0;
-                t.src=v;s=b.getElementsByTagName(e)[0];
-                s.parentNode.insertBefore(t,s)}}(window, document,'script',
-                'https://connect.facebook.net/en_US/fbevents.js');
-                fbq('init', '{config.api_key}');
-                fbq('track', 'PageView');
-            </script>
-            """
-    
-    return "<!-- Integration code not available -->"
-
 # ==================== Authentication Endpoints ====================
 
 @app.post("/api/auth/signup", response_model=Token)
 async def signup(user_data: UserCreate, db: Session = Depends(get_db)):
+    """User registration"""
+    # Check if user exists
     existing_user = db.query(User).filter(User.email == user_data.email).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered")
 
+    # Hash password and create user
     hashed_password = hash_password(user_data.password)
-
     user = User(
         id=str(uuid.uuid4()),
         name=user_data.name,
@@ -832,7 +454,9 @@ async def signup(user_data: UserCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(user)
 
+    # Create access token
     access_token = create_access_token(data={"sub": str(user.id)})
+    
     return {
         "status": "success",
         "access_token": access_token,
@@ -851,6 +475,7 @@ async def signup(user_data: UserCreate, db: Session = Depends(get_db)):
 @app.post("/api/auth/login", response_model=Token)
 @limiter.limit("5 per minute")
 async def login(request: Request, login_data: UserLogin, db: Session = Depends(get_db)):
+    """User login with rate limiting"""
     user = db.query(User).filter(User.email == login_data.email).first()
 
     if not user or not verify_password(login_data.password, user.password_hash):
@@ -865,6 +490,7 @@ async def login(request: Request, login_data: UserLogin, db: Session = Depends(g
     db.commit()
 
     access_token = create_access_token(data={"sub": str(user.id)})
+    
     return {
         "status": "success",
         "access_token": access_token,
@@ -883,6 +509,7 @@ async def login(request: Request, login_data: UserLogin, db: Session = Depends(g
 
 @app.post("/api/auth/forgot-password")
 async def forgot_password(request: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    """Request password reset"""
     user = db.query(User).filter(User.email == request.email).first()
     
     if not user:
@@ -899,6 +526,7 @@ async def forgot_password(request: ForgotPasswordRequest, db: Session = Depends(
 
 @app.post("/api/auth/reset-password")
 async def reset_password(request: ResetPasswordRequest, db: Session = Depends(get_db)):
+    """Reset password with token"""
     user = db.query(User).filter(
         User.password_reset_token == request.token,
         User.password_reset_expires > datetime.now(timezone.utc)
@@ -916,6 +544,7 @@ async def reset_password(request: ResetPasswordRequest, db: Session = Depends(ge
 
 @app.get("/api/auth/me", response_model=UserResponse)
 async def get_current_user_info(current_user: User = Depends(get_current_user)):
+    """Get current user info"""
     return {
         "id": str(current_user.id),
         "name": current_user.name,
@@ -928,10 +557,12 @@ async def get_current_user_info(current_user: User = Depends(get_current_user)):
 
 @app.post("/api/auth/logout")
 async def logout(current_user: User = Depends(get_current_user)):
+    """Logout user"""
     return {"message": "Logged out successfully"}
 
 @app.post("/api/auth/refresh")
 async def refresh_token(current_user: User = Depends(get_current_user)):
+    """Refresh JWT token"""
     access_token = create_access_token(data={"sub": str(current_user.id)})
     return {
         "access_token": access_token,
@@ -942,6 +573,7 @@ async def refresh_token(current_user: User = Depends(get_current_user)):
 
 @app.get("/api/credits/balance")
 async def get_credit_balance(current_user: User = Depends(get_current_user)):
+    """Get user's credit balance"""
     return {
         "credits": current_user.credits_balance,
         "subscription_tier": current_user.subscription_tier
@@ -952,6 +584,7 @@ async def get_credit_transactions(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    """Get user's credit transaction history"""
     try:
         transactions = db.query(CreditTransaction).filter(
             CreditTransaction.user_id == current_user.id
@@ -968,7 +601,7 @@ async def get_credit_transactions(
             for tx in transactions
         ]
     except:
-        return []  # Return empty list if CreditTransaction model doesn't exist
+        return []
 
 @app.post("/api/credits/purchase")
 async def purchase_credits(
@@ -976,6 +609,7 @@ async def purchase_credits(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    """Purchase credits"""
     credit_prices = {
         50: 2.99,
         100: 4.99,
@@ -1004,6 +638,167 @@ async def purchase_credits(
         "payment_method": purchase.payment_method
     }
 
+# ==================== Project Management Endpoints ====================
+
+@app.post("/api/projects")
+async def create_project(
+    project_data: ProjectCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Create a new project"""
+    if not deduct_credits(db, str(current_user.id), 1):
+        raise HTTPException(status_code=402, detail="Insufficient credits")
+    
+    global_styles = project_data.customizations.get("styles", {}) if project_data.customizations else {}
+    layout_config = project_data.customizations.get("layout", {}) if project_data.customizations else {}
+    
+    project = Project(
+        id=str(uuid.uuid4()),
+        name=project_data.name,
+        user_id=current_user.id,
+        global_styles=global_styles,
+        layout_config=layout_config
+    )
+    
+    db.add(project)
+    db.commit()
+    db.refresh(project)
+    
+    return {
+        "id": str(project.id),
+        "name": project.name,
+        "designs": [],
+        "customizations": {
+            "styles": project.global_styles,
+            "layout": project.layout_config
+        },
+        "html_code": project.html_code,
+        "created_at": project.created_at,
+        "updated_at": project.updated_at,
+        "user_id": str(project.user_id),
+        "published_url": project.published_url
+    }
+
+@app.get("/api/projects")
+async def get_user_projects(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get all projects for current user"""
+    projects = db.query(Project).filter(
+        Project.user_id == current_user.id
+    ).order_by(desc(Project.updated_at)).all()
+    
+    result = []
+    for project in projects:
+        result.append({
+            "id": str(project.id),
+            "name": project.name,
+            "designs": [],
+            "customizations": {
+                "styles": project.global_styles,
+                "layout": project.layout_config
+            },
+            "html_code": project.html_code,
+            "created_at": project.created_at,
+            "updated_at": project.updated_at,
+            "user_id": str(project.user_id),
+            "published_url": project.published_url
+        })
+    
+    return result
+
+@app.get("/api/projects/{project_id}")
+async def get_project(
+    project_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get a specific project"""
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    if str(project.user_id) != str(current_user.id):
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    return {
+        "id": str(project.id),
+        "name": project.name,
+        "designs": [],
+        "customizations": {
+            "styles": project.global_styles,
+            "layout": project.layout_config
+        },
+        "html_code": project.html_code,
+        "created_at": project.created_at,
+        "updated_at": project.updated_at,
+        "user_id": str(project.user_id),
+        "published_url": project.published_url
+    }
+
+@app.put("/api/projects/{project_id}")
+async def update_project(
+    project_id: str,
+    updates: ProjectUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update a project"""
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    if str(project.user_id) != str(current_user.id):
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    if updates.name:
+        project.name = updates.name
+    if updates.customizations:
+        project.global_styles = updates.customizations.get("styles", project.global_styles)
+        project.layout_config = updates.customizations.get("layout", project.layout_config)
+    if updates.html_code:
+        project.html_code = updates.html_code
+    
+    project.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(project)
+    
+    return {
+        "id": str(project.id),
+        "name": project.name,
+        "designs": [],
+        "customizations": {
+            "styles": project.global_styles,
+            "layout": project.layout_config
+        },
+        "html_code": project.html_code,
+        "created_at": project.created_at,
+        "updated_at": project.updated_at,
+        "user_id": str(project.user_id),
+        "published_url": project.published_url
+    }
+
+@app.delete("/api/projects/{project_id}")
+async def delete_project(
+    project_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Delete a project"""
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    if str(project.user_id) != str(current_user.id):
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    db.delete(project)
+    db.commit()
+    
+    return {"message": "Project deleted successfully"}
+
 # ==================== GCS File Upload Endpoints ====================
 
 @app.post("/api/upload", response_model=FileUploadResponse)
@@ -1014,21 +809,14 @@ async def upload_file(
     folder: str = Form("uploads"),
     current_user: User = Depends(get_current_user)
 ):
-    """
-    Upload a file to Google Cloud Storage
-    
-    - **file**: The file to upload
-    - **folder**: Optional folder path (default: "uploads")
-    
-    Returns the public URL of the uploaded file
-    """
+    """Upload a file to Google Cloud Storage"""
     try:
         # Validate file size (max 10MB)
         file.file.seek(0, 2)
         file_size = file.file.tell()
         file.file.seek(0)
         
-        if file_size > 10 * 1024 * 1024:  # 10MB
+        if file_size > 10 * 1024 * 1024:
             raise HTTPException(status_code=413, detail="File too large. Maximum size is 10MB")
         
         # Generate unique filename
@@ -1068,13 +856,7 @@ async def upload_avatar(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """
-    Upload a user avatar image to GCS
-    
-    - **file**: Image file (jpg, png, gif, webp)
-    
-    Returns the public URL of the uploaded avatar
-    """
+    """Upload a user avatar image to GCS"""
     # Validate file type
     allowed_types = ["image/jpeg", "image/png", "image/gif", "image/webp"]
     if file.content_type not in allowed_types:
@@ -1088,7 +870,7 @@ async def upload_avatar(
     file_size = file.file.tell()
     file.file.seek(0)
     
-    if file_size > 5 * 1024 * 1024:  # 5MB
+    if file_size > 5 * 1024 * 1024:
         raise HTTPException(status_code=413, detail="Avatar too large. Maximum size is 5MB")
     
     try:
@@ -1131,14 +913,7 @@ async def upload_website_assets(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """
-    Upload multiple website assets to GCS for a project
-    
-    - **files**: List of files to upload
-    - **project_id**: The project ID these assets belong to
-    
-    Returns a list of uploaded file URLs
-    """
+    """Upload multiple website assets to GCS for a project"""
     # Verify project belongs to user
     project = db.query(Project).filter(
         Project.id == project_id,
@@ -1197,13 +972,9 @@ async def delete_uploaded_file(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """
-    Delete a file from Google Cloud Storage
-    
-    - **file_path**: The full blob path (e.g., "uploads/user_id/filename.jpg")
-    """
+    """Delete a file from Google Cloud Storage"""
     try:
-        # Security: Ensure the file belongs to the user (check path)
+        # Security: Ensure the file belongs to the user
         if not file_path.startswith(f"uploads/{current_user.id}/") and \
            not file_path.startswith(f"avatars/{current_user.id}/") and \
            not file_path.startswith(f"projects/"):
@@ -1245,11 +1016,7 @@ async def list_user_files(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """
-    List all files uploaded by the current user in a specific folder
-    
-    - **folder**: The folder to list (default: "uploads")
-    """
+    """List all files uploaded by the current user"""
     try:
         from google.cloud import storage
         
@@ -1293,357 +1060,28 @@ async def list_user_files(
         logger.error(f"List files error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to list files: {str(e)}")
 
-# ==================== Project Management Endpoints ====================
-
-@app.post("/api/projects")
-async def create_project(
-    project_data: ProjectCreate,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    if not deduct_credits(db, str(current_user.id), 1):
-        raise HTTPException(status_code=402, detail="Insufficient credits")
-    
-    global_styles = project_data.customizations.get("styles", {}) if project_data.customizations else {}
-    layout_config = project_data.customizations.get("layout", {}) if project_data.customizations else {}
-    
-    project = Project(
-        id=str(uuid.uuid4()),
-        name=project_data.name,
-        user_id=current_user.id,
-        global_styles=global_styles,
-        layout_config=layout_config
-    )
-    
-    db.add(project)
-    db.commit()
-    db.refresh(project)
-    
-    # FIXED: Only add designs if project_designs table exists
-    if project_data.designs and project_designs is not None:
-        for design_id in project_data.designs:
-            try:
-                stmt = project_designs.insert().values(
-                    project_id=project.id,
-                    design_id=design_id,
-                    merged_order=0
-                )
-                db.execute(stmt)
-            except:
-                pass
-        db.commit()
-    
-    result = []
-    if project_designs is not None:
-        try:
-            result = db.execute(
-                project_designs.select().where(project_designs.c.project_id == project.id)
-            )
-        except:
-            pass
-    design_ids = [row.design_id for row in result] if result else []
-    
-    return {
-        "id": str(project.id),
-        "name": project.name,
-        "designs": design_ids,
-        "customizations": {
-            "styles": project.global_styles,
-            "layout": project.layout_config
-        },
-        "html_code": project.html_code,
-        "created_at": project.created_at,
-        "updated_at": project.updated_at,
-        "user_id": str(project.user_id),
-        "published_url": project.published_url
-    }
-
-@app.get("/api/projects")
-async def get_user_projects(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    projects = db.query(Project).filter(
-        Project.user_id == current_user.id
-    ).order_by(desc(Project.updated_at)).all()
-    
-    result = []
-    for project in projects:
-        design_ids = []
-        if project_designs is not None:
-            try:
-                result_designs = db.execute(
-                    project_designs.select().where(project_designs.c.project_id == project.id)
-                )
-                design_ids = [row.design_id for row in result_designs]
-            except:
-                pass
-        
-        result.append({
-            "id": str(project.id),
-            "name": project.name,
-            "designs": design_ids,
-            "customizations": {
-                "styles": project.global_styles,
-                "layout": project.layout_config
-            },
-            "html_code": project.html_code,
-            "created_at": project.created_at,
-            "updated_at": project.updated_at,
-            "user_id": str(project.user_id),
-            "published_url": project.published_url
-        })
-    
-    return result
-
-@app.get("/api/projects/{project_id}")
-async def get_project(
-    project_id: str,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    project = db.query(Project).filter(Project.id == project_id).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
-    
-    if str(project.user_id) != str(current_user.id):
-        raise HTTPException(status_code=403, detail="Access denied")
-    
-    design_ids = []
-    if project_designs is not None:
-        try:
-            result = db.execute(
-                project_designs.select().where(project_designs.c.project_id == project.id)
-            )
-            design_ids = [row.design_id for row in result]
-        except:
-            pass
-    
-    return {
-        "id": str(project.id),
-        "name": project.name,
-        "designs": design_ids,
-        "customizations": {
-            "styles": project.global_styles,
-            "layout": project.layout_config
-        },
-        "html_code": project.html_code,
-        "created_at": project.created_at,
-        "updated_at": project.updated_at,
-        "user_id": str(project.user_id),
-        "published_url": project.published_url
-    }
-
-@app.put("/api/projects/{project_id}")
-async def update_project(
-    project_id: str,
-    updates: ProjectUpdate,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    project = db.query(Project).filter(Project.id == project_id).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
-    
-    if str(project.user_id) != str(current_user.id):
-        raise HTTPException(status_code=403, detail="Access denied")
-    
-    if updates.name:
-        project.name = updates.name
-    if updates.customizations:
-        project.global_styles = updates.customizations.get("styles", project.global_styles)
-        project.layout_config = updates.customizations.get("layout", project.layout_config)
-    if updates.html_code:
-        project.html_code = updates.html_code
-    
-    project.updated_at = datetime.now(timezone.utc)
-    db.commit()
-    db.refresh(project)
-    
-    design_ids = []
-    if project_designs is not None:
-        try:
-            result = db.execute(
-                project_designs.select().where(project_designs.c.project_id == project.id)
-            )
-            design_ids = [row.design_id for row in result]
-        except:
-            pass
-    
-    return {
-        "id": str(project.id),
-        "name": project.name,
-        "designs": design_ids,
-        "customizations": {
-            "styles": project.global_styles,
-            "layout": project.layout_config
-        },
-        "html_code": project.html_code,
-        "created_at": project.created_at,
-        "updated_at": project.updated_at,
-        "user_id": str(project.user_id),
-        "published_url": project.published_url
-    }
-
-@app.delete("/api/projects/{project_id}")
-async def delete_project(
-    project_id: str,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    project = db.query(Project).filter(Project.id == project_id).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
-    
-    if str(project.user_id) != str(current_user.id):
-        raise HTTPException(status_code=403, detail="Access denied")
-    
-    db.delete(project)
-    db.commit()
-    
-    return {"message": "Project deleted successfully"}
-
-# ==================== Missing Helper Functions for AI Generation ====================
-
-def generate_features_component() -> str:
-    """Generate a features component for the website"""
-    return '''import React from 'react';
-
-const Features = () => {
-  const features = [
-    {
-      icon: "🚀",
-      title: "Fast Performance",
-      description: "Optimized for speed and performance"
-    },
-    {
-      icon: "🎨",
-      title: "Beautiful Design",
-      description: "Modern and responsive design"
-    },
-    {
-      icon: "🔒",
-      title: "Secure",
-      description: "Built with security in mind"
-    }
-  ];
-
-  return (
-    <section id="features" className="py-20 px-4">
-      <div className="container mx-auto">
-        <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">
-          <span className="gradient-text">Features</span>
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {features.map((feature, index) => (
-            <div
-              key={index}
-              className="bg-[#1A2332]/50 p-6 rounded-xl border border-white/5 hover:border-[#4F6EF7]/30 transition-all hover:transform hover:scale-105"
-            >
-              <div className="text-4xl mb-4">{feature.icon}</div>
-              <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
-              <p className="text-gray-400">{feature.description}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-};
-
-export default Features;
-'''
-
-def generate_contact_component() -> str:
-    """Generate a contact component for the website"""
-    return '''import React, { useState } from 'react';
-
-const Contact = () => {
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    message: ''
-  });
-
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    // Handle form submission
-    console.log('Form submitted:', formData);
-  };
-
-  return (
-    <section id="contact" className="py-20 px-4">
-      <div className="container mx-auto max-w-2xl">
-        <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">
-          <span className="gradient-text">Get In Touch</span>
-        </h2>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Name
-            </label>
-            <input
-              type="text"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              className="w-full px-4 py-3 bg-[#1A2332] border border-white/10 rounded-lg focus:outline-none focus:border-[#4F6EF7] text-white"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Email
-            </label>
-            <input
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              className="w-full px-4 py-3 bg-[#1A2332] border border-white/10 rounded-lg focus:outline-none focus:border-[#4F6EF7] text-white"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Message
-            </label>
-            <textarea
-              name="message"
-              rows={5}
-              value={formData.message}
-              onChange={handleChange}
-              className="w-full px-4 py-3 bg-[#1A2332] border border-white/10 rounded-lg focus:outline-none focus:border-[#4F6EF7] text-white"
-              required
-            />
-          </div>
-          <button
-            type="submit"
-            className="w-full py-3 bg-gradient-to-r from-[#4F6EF7] to-[#2DBCB6] text-white rounded-lg font-medium hover:opacity-90 transition-all"
-          >
-            Send Message
-          </button>
-        </form>
-      </div>
-    </section>
-  );
-};
-
-export default Contact;
-'''
-
 # ==================== Run the app ====================
 
 if __name__ == "__main__":
     import uvicorn
-    # FIXED: Removed invalid HOST variable
+    
+    # Get Render's PORT (or fallback for local development)
     port = int(os.getenv("PORT", 10000))
     host = os.getenv("HOST", "0.0.0.0")
-    uvicorn.run(app, host=host, port=port, log_level="info")
+    
+    # Check if running on Render
+    is_render = os.getenv("RENDER", "false").lower() == "true"
+    
+    logger.info(f"Starting server on {host}:{port}")
+    logger.info(f"Running on Render: {is_render}")
+    logger.info(f"Environment: {'production' if is_render else 'development'}")
+    
+    # Run with Uvicorn - configured for Render
+    uvicorn.run(
+        "app:app",  # Must use string format for Render compatibility
+        host=host,
+        port=port,
+        log_level="info",
+        reload=not is_render,  # Only reload in development
+        access_log=True
+    )
