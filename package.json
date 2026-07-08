@@ -14,12 +14,17 @@
     "react-router-dom": "^6.20.1",
     "react-scripts": "5.0.1"
   },
+  "devDependencies": {
+    "webpack-bundle-analyzer": "^4.10.2"
+  },
   "scripts": {
     "start": "react-scripts start",
-    "build": "react-scripts build",
-    "vercel-build": "CI=false INLINE_RUNTIME_CHUNK=false react-scripts build",
+    "build": "GENERATE_SOURCEMAP=false react-scripts build",
+    "vercel-build": "GENERATE_SOURCEMAP=false CI=false react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "analyze": "npm run build && npx webpack-bundle-analyzer build/static/js/*.js --stats=build/static/js/*.js",
+    "analyze:prod": "GENERATE_SOURCEMAP=false react-scripts build && npx webpack-bundle-analyzer build/static/js/*.js"
   },
   "eslintConfig": {
     "extends": ["react-app"]
