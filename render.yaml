@@ -1,9 +1,50 @@
+# render.yaml - For Render Blueprint deployment
 services:
   - type: web
-    name: my-fastapi-app
+    name: aleyo-backend
     runtime: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: cd backend && uvicorn app:app --host 0.0.0.0 --port $PORT
+    plan: starter  # or free, professional, etc.
+    
+    # Build and start commands
+    buildCommand: |
+      pip install -r requirements.txt
+      # Any other build steps
+    
+    startCommand: |
+      uvicorn app:app --host 0.0.0.0 --port $PORT
+    
+    # Environment variables
     envVars:
       - key: PYTHON_VERSION
-        value: 3.12.7
+        value: 3.11.0
+      - key: DATABASE_URL
+        fromDatabase:
+          name: aleyo-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ANTHROPIC_API_KEY
+        sync: false  # Will be set manually
+      - key: GCP_PROJECT_ID
+        sync: false
+      - key: GCP_BUCKET_NAME
+        sync: false
+      - key: GOOGLE_APPLICATION_CREDENTIALS
+        sync: false
+      - key: INSTANCE_CONNECTION_NAME
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASS
+        sync: false
+      - key: DB_NAME
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+    
+    # Health check
+    healthCheckPath: /health
+    
+    # Auto-scaling (for paid plans)
+    # numInstances: 1
+    # maxScale: 2
