@@ -2,18 +2,26 @@ services:
   - type: web
     name: aleyo-backend
     runtime: python
+    plan: starter
     buildCommand: |
-    pip install --upgrade pip
-    pip install --upgrade -r requirements.txt
-    startCommand: uvicorn app:app --host 0.0.0.0 --port $PORT
+      cd backend
+      pip install --upgrade pip
+      pip install -r requirements.txt
+    startCommand: |
+      cd backend
+      uvicorn app:app --host 0.0.0.0 --port $PORT
     envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.11
       - key: DATABASE_URL
         fromDatabase:
           name: aleyo-db
           property: connectionString
       - key: SECRET_KEY
         generateValue: true
-      # Add other env vars...
+      - key: FRONTEND_URL
+        value: https://aleyo-2-six.vercel.app
+    healthCheckPath: /health
 
 databases:
   - name: aleyo-db
