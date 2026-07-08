@@ -169,7 +169,7 @@ ALLOWED_ORIGINS = [
     "http://localhost:3001",
     "http://127.0.0.1:3000",
     "http://127.0.0.1:3001",
-    "https://aleyo-2.vercel.app",
+    "https://aleyo-2-six.vercel.app",
     "https://aleyo-2-1.onrender.com",
 ]
 
