@@ -1,18 +1,17 @@
 --only-binary :all:
-# requirements.txt - CORRECTED
-pip install --upgrade pip
-fastapi==0.104.1
-uvicorn[standard]==0.24.0
-sqlalchemy==2.0.23
-pg8000==1.30.2
-cloud-sql-python-connector==1.9.0  # ← CORRECT package name
-google-cloud-storage==2.12.0
-python-dotenv==1.0.0
-pydantic==1.9.0a1
-python-multipart==0.0.6
-python-jose[cryptography]==3.3.0
-passlib[bcrypt]==1.7.4
-bcrypt==4.1.1
-slowapi==0.1.9
-email-validator==2.1.0
-anthropic==0.7.0
+# requirements.txt - Using minimal versions for better compatibility
+fastapi
+uvicorn[standard]
+sqlalchemy
+pg8000
+cloud-sql-python-connector
+google-cloud-storage
+python-dotenv
+pydantic
+python-multipart
+python-jose[cryptography]
+passlib[bcrypt]
+bcrypt
+slowapi
+email-validator
+anthropic
