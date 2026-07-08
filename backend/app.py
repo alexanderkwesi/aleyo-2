@@ -1644,6 +1644,6 @@ export default Contact;
 if __name__ == "__main__":
     import uvicorn
     # FIXED: Removed invalid HOST variable
-    port = int(os.getenv("PORT", 3001))
+    port = int(os.getenv("PORT", 10000))
     host = os.getenv("HOST", "0.0.0.0")
     uvicorn.run(app, host=host, port=port, log_level="info")
