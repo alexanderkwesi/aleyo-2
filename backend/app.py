@@ -87,6 +87,7 @@ except ImportError as e:
         created_at = Column(DateTime, default=datetime.now(timezone.utc))
         updated_at = Column(DateTime, default=datetime.now(timezone.utc))
     
+    # ✅ FIXED: Renamed 'metadata' column to 'extra_data' (SQLAlchemy reserved)
     class CreditTransaction(Base):
         __tablename__ = "credit_transactions"
         id = Column(String, primary_key=True)
@@ -94,6 +95,7 @@ except ImportError as e:
         amount = Column(Integer)
         type = Column(String)
         description = Column(String)
+        extra_data = Column(JSON, nullable=True)  # ← FIXED: renamed from 'metadata'
         created_at = Column(DateTime, default=datetime.now(timezone.utc))
     
     project_designs = None  # Placeholder
@@ -590,6 +592,7 @@ async def get_credit_transactions(
             CreditTransaction.user_id == current_user.id
         ).order_by(desc(CreditTransaction.created_at)).all()
         
+        # ✅ FIXED: Removed 'metadata' reference (was renamed to extra_data)
         return [
             {
                 "id": str(tx.id),
@@ -597,10 +600,12 @@ async def get_credit_transactions(
                 "type": tx.type,
                 "description": tx.description,
                 "created_at": tx.created_at
+                # 'extra_data' is available but not returned here
             }
             for tx in transactions
         ]
-    except:
+    except Exception as e:
+        logger.error(f"Error fetching transactions: {e}")
         return []
 
 @app.post("/api/credits/purchase")
