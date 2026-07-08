@@ -7,7 +7,7 @@ pg8000==1.30.2
 cloud-sql-python-connector==1.9.0  # ← CORRECT package name
 google-cloud-storage==2.12.0
 python-dotenv==1.0.0
-pydantic==2.41.5
+pydantic==1.9.0a1
 python-multipart==0.0.6
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
