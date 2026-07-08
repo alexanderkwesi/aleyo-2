@@ -8,7 +8,14 @@
       }
     }
   ],
-  "env": {
-    "REACT_APP_API_URL": "https://aleyo-2-1.onrender.com"
-  }
+  "routes": [
+    {
+      "src": "/manifest.json",
+      "dest": "/manifest.json"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
+  ]
 }
