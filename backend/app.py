@@ -1069,10 +1069,10 @@ async def list_user_files(
 
 if __name__ == "__main__":
     import uvicorn
-    #http://127.0.0.1:37976
+    #http://35.230.74.10:0
     # Get Render's PORT (or fallback for local development)
-    port = int(os.getenv("PORT", "*"))
-    host = os.getenv("HOST", "127.0.0.1")
+    port = int(os.getenv("PORT", "0"))
+    host = os.getenv("HOST", "35.230.74.10")
     
     # Check if running on Render
     is_render = os.getenv("RENDER", "false").lower() == "true"
