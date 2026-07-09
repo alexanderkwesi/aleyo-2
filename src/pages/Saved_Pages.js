@@ -82,7 +82,7 @@ import QRCode from 'qrcode';
 // ============================================================
 // CONSTANTS & CONFIGURATION
 // ============================================================
-const API_BASE = process.env.REACT_APP_API_URL || 'https://aleyo-2-1.onrender.com';
+const API_BASE = process.env.REACT_APP_API_URL || 'https://aleyo-2-1.onrender.com'  || "http://127.0.0.1:37976" ;
 const STORAGE_KEYS = {
   PROJECT_PREFIX: 'project_',
   PUBLISHED_PREFIX: 'published_',
