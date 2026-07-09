@@ -603,6 +603,18 @@ apiService.removeAuthToken = () => {
 };
 
 // ✅ EXPORT all services
+// At the bottom of api.js, replace the export with:
+
+// Export everything as named exports
+export { 
+  api, 
+  apiService, 
+  projectService, 
+  creditService, 
+  uploadService 
+};
+
+// Also keep default export for backward compatibility
 export default { 
   api, 
   apiService, 
