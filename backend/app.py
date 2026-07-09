@@ -172,7 +172,7 @@ ALLOWED_ORIGINS = [
     "http://127.0.0.1:3000",
     "http://127.0.0.1:3001",
     "https://aleyo-2-six.vercel.app",
-    "https://aleyo-2-1.onrender.com", "*", "http://127.0.0.1:37976"
+    "https://aleyo-2-1.onrender.com", "*", "http://127.0.0.1:*"
 ]
 
 # Add FRONTEND_URL if set
@@ -1071,7 +1071,7 @@ if __name__ == "__main__":
     import uvicorn
     #http://127.0.0.1:37976
     # Get Render's PORT (or fallback for local development)
-    port = int(os.getenv("PORT", 37976))
+    port = int(os.getenv("PORT", "*"))
     host = os.getenv("HOST", "127.0.0.1")
     
     # Check if running on Render
