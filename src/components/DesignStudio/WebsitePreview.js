@@ -13,6 +13,9 @@ import {
   CardContent,
   CardActions,
   Link as MuiLink,
+  Paper,
+  TextField,
+  Divider,
 } from '@mui/material';
 import {
   YouTube,
@@ -22,6 +25,9 @@ import {
   Twitter,
   ArrowForward,
   CheckCircle,
+  OpenInNew,
+  WhatsApp,
+  PhotoLibrary,
 } from '@mui/icons-material';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -29,9 +35,12 @@ import { useAuth } from '../../context/AuthContext';
 import {
   API_BASE,
   G_START,
+  G_MID,
+  G_END,
   GRAD,
   convertToFilePath,
   getLinkType,
+  isExternalLink,
 } from './DesignStudioUtils';
 
 export const PublishedWebsiteViewer = () => {
@@ -872,8 +881,8 @@ export const WebsitePreview = ({ project, isDownload = false }) => {
                   padding: '8px 16px',
                   borderRadius: globalStyles.borderRadius,
                   transition: 'all 0.3s ease',
-                  fontSize: element.styles.fontSize,
-                  fontWeight: element.styles.fontWeight,
+                  fontSize: element.styles?.fontSize,
+                  fontWeight: element.styles?.fontWeight,
                   '&:hover': {
                     color: globalStyles.primaryColor,
                     backgroundColor: alpha(globalStyles.primaryColor, 0.1),
