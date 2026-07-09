@@ -35,7 +35,7 @@ const getApiUrl = () => {
   }
   
   // Development fallback
-  return "http://127.0.0.1:1000" ;
+  return "http://0.0.0.0:1000" ;
 };
 
 const API_BASE = getApiUrl();
