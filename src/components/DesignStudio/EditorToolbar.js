@@ -54,6 +54,7 @@ export const EditorToolbar = ({
   handlePublish,
   saveStatus,
   autoSaveStatus,
+  setAutoSaveStatus,
   autoSaveEnabled,
   setAutoSaveEnabled,
   historyIndex,
@@ -75,22 +76,28 @@ export const EditorToolbar = ({
   setSelectedComponent = () => {},
   setSelectedTextElement = () => {},
   setSelectedImageElement = () => {},
-  // Sidebar props
   sidebarOpen = false,
   setSidebarOpen = () => {},
-  // Publish Manager props
   setPublishManagerOpen = () => {},
   publishManagerOpen = false,
 }) => {
-  const setAutoSaveStatusSafe =
-    typeof setAutoSaveStatus !== 'undefined' ? setAutoSaveStatus : () => {};
-
   const safePages = Array.isArray(pages) ? pages : [];
 
   const handleDeselectAll = () => {
     if (typeof setSelectedComponent === 'function') setSelectedComponent(null);
     if (typeof setSelectedTextElement === 'function') setSelectedTextElement(null);
     if (typeof setSelectedImageElement === 'function') setSelectedImageElement(null);
+  };
+
+  const handleAutoSaveToggle = (enabled) => {
+    setAutoSaveEnabled(enabled);
+    if (!enabled && typeof setAutoSaveStatus === 'function') {
+      setAutoSaveStatus('idle');
+    }
+    showSnackbar(
+      enabled ? 'Auto-save turned on' : 'Auto-save turned off',
+      enabled ? 'success' : 'info'
+    );
   };
 
   return (
@@ -211,8 +218,8 @@ export const EditorToolbar = ({
               saveStatus === 'saving'
                 ? 'Saving...'
                 : saveStatus === 'saved'
-                  ? '✓ Saved'
-                  : '⚠️ Error'
+                ? '✓ Saved'
+                : '⚠️ Error'
             }
             sx={{
               flexShrink: 0,
@@ -220,8 +227,8 @@ export const EditorToolbar = ({
                 saveStatus === 'saved'
                   ? alpha(G_END, 0.2)
                   : saveStatus === 'error'
-                    ? alpha('#ff4444', 0.2)
-                    : alpha(G_START, 0.2),
+                  ? alpha('#ff4444', 0.2)
+                  : alpha(G_START, 0.2),
               color: saveStatus === 'saved' ? G_END : saveStatus === 'error' ? '#ff4444' : G_START,
               fontSize: '0.65rem',
               height: 24,
@@ -252,15 +259,7 @@ export const EditorToolbar = ({
               <Switch
                 size="small"
                 checked={autoSaveEnabled}
-                onChange={(e) => {
-                  const enabled = e.target.checked;
-                  setAutoSaveEnabled(enabled);
-                  if (!enabled) setAutoSaveStatusSafe('idle');
-                  showSnackbar(
-                    enabled ? 'Auto-save turned on' : 'Auto-save turned off',
-                    enabled ? 'success' : 'info'
-                  );
-                }}
+                onChange={(e) => handleAutoSaveToggle(e.target.checked)}
                 sx={{
                   '& .MuiSwitch-switchBase.Mui-checked': { color: G_START },
                   '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
