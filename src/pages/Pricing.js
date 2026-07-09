@@ -66,7 +66,7 @@ const G_MID = '#2DBCB6';
 const G_END = '#3ED67C';
 const GRAD = `linear-gradient(135deg, ${G_START} 0%, ${G_MID} 50%, ${G_END} 100%)`;
 //const REACT_APP_API_URL = "https://aleyo-2-six.vercel.app";
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://aleyo-2-1.onrender.com';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://aleyo-2-1.onrender.com' || "http://127.0.0.1:37976" ;
 
 // The API returns icon as a name string (e.g. "Rocket"); map it to the
 // actual icon component here. Fallback plans below already pass a JSX
