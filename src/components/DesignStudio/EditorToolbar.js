@@ -13,6 +13,8 @@ import {
   Switch,
   Divider,
   CircularProgress,
+  Paper,
+  TextField,
 } from '@mui/material';
 import {
   Edit,
@@ -103,7 +105,8 @@ export const EditorToolbar = ({
         overflowX: 'auto',
         overflowY: 'hidden',
         minHeight: 'auto',
-        flexShrink: 0, marginTop:'100px',
+        flexShrink: 0,
+        marginTop: '100px',
       }}
     >
       <Toolbar
