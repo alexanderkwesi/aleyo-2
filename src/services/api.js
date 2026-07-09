@@ -1,20 +1,36 @@
 // src/services/api.js
 import axios from 'axios';
 
-// ✅ FIXED: Safe environment variable handling
+// ✅ FIXED: Safe environment variable handling for Render
 const getApiUrl = () => {
-  // Check if process exists (for browser environment)
-  if (typeof process !== 'undefined' && process.env && process.env.REACT_APP_API_URL) {
+  // Check if running in browser
+  if (typeof window === 'undefined') {
+    return process.env.REACT_APP_API_URL || 'http://localhost:10000';
+  }
+
+  // Check for environment variable first (for Vercel/Netlify)
+  if (process.env.NODE_ENV === 'production' && process.env.REACT_APP_API_URL) {
     return process.env.REACT_APP_API_URL;
   }
-  
-  // Production fallback for Vercel
-  if (typeof window !== 'undefined' && window.location && window.location.hostname === 'aleyo-2-six.vercel.app') {
+
+  // Check if running on Render (backend)
+  if (window.location.hostname === 'aleyo-2-1.onrender.com') {
     return 'https://aleyo-2-1.onrender.com';
   }
-  
-  // Development fallback
-  return 'http://35.230.74.10:0';
+
+  // Check if running on Vercel (frontend)
+  if (window.location.hostname === 'aleyo-2-six.vercel.app') {
+    return 'https://aleyo-2-1.onrender.com';
+  }
+
+  // Check if running on Render with custom domain
+  if (window.location.hostname.includes('onrender.com')) {
+    // Use the same host but with https
+    return `https://${window.location.hostname}`;
+  }
+
+  // Local development
+  return process.env.REACT_APP_API_URL || 'http://localhost:10000';
 };
 
 // Base API configuration
@@ -181,6 +197,8 @@ const handleError = (error) => {
     status: error.response?.status,
     data: error.response?.data,
     config: error.config,
+    url: error.config?.url,
+    baseURL: error.config?.baseURL,
   });
 
   // Extract error message from response
@@ -603,8 +621,6 @@ apiService.removeAuthToken = () => {
 };
 
 // ✅ EXPORT all services
-// At the bottom of api.js, replace the export with:
-
 // Export everything as named exports
 export { 
   api, 
@@ -622,5 +638,3 @@ export default {
   creditService, 
   uploadService 
 };
-
-//export default apiService;
