@@ -14,7 +14,7 @@ const getApiUrl = () => {
   }
   
   // Development fallback
-  return 'http://0.0.0.0:10000';
+  return 'http://35.230.74.10:0';
 };
 
 // Base API configuration
