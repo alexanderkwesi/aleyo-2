@@ -1,69 +1,76 @@
 // src/services/api.js
 import axios from 'axios';
 
-// ✅ FIXED: Safe environment variable handling for Render
+// ✅ FIXED: Simplified and robust API URL detection
 const getApiUrl = () => {
-  // Check if running in browser
-  if (typeof window === 'undefined') {
-    return process.env.REACT_APP_API_URL || 'http://localhost:10000';
-  }
-
-  // Check for environment variable first (for Vercel/Netlify)
-  if (process.env.NODE_ENV === 'production' && process.env.REACT_APP_API_URL) {
+  // 1. Check for environment variable first (Render/Netlify/Vercel)
+  if (process.env.REACT_APP_API_URL) {
     return process.env.REACT_APP_API_URL;
   }
 
-  // Check if running on Render (backend)
-  if (window.location.hostname === 'aleyo-2-1.onrender.com') {
-    return 'https://aleyo-2-1.onrender.com';
+  // 2. Check if running in browser
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+
+    // Production: Vercel frontend → Render backend
+    if (hostname.includes('vercel.app')) {
+      return 'https://aleyo-2-1.onrender.com';
+    }
+
+    // Production: Render backend (serving frontend)
+    if (hostname.includes('onrender.com')) {
+      // If frontend is also on Render, use the same host
+      return `https://${hostname}`;
+    }
+
+    // Local development: check port
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return process.env.REACT_APP_API_URL || 'http://localhost:10000';
+    }
   }
 
-  // Check if running on Vercel (frontend)
-  if (window.location.hostname === 'aleyo-2-six.vercel.app') {
-    return 'https://aleyo-2-1.onrender.com';
-  }
-
-  // Check if running on Render with custom domain
-  if (window.location.hostname.includes('onrender.com')) {
-    // Use the same host but with https
-    return `https://${window.location.hostname}`;
-  }
-
-  // Local development
-  return process.env.REACT_APP_API_URL || 'http://localhost:10000';
+  // Fallback for server-side rendering / build time
+  return process.env.REACT_APP_API_URL || 'https://aleyo-2-1.onrender.com';
 };
 
 // Base API configuration
 const API_BASE_URL = getApiUrl();
 
-// Create axios instance
+// Log the API URL for debugging (remove in production)
+console.log('🔗 API Base URL:', API_BASE_URL);
+
+// Create axios instance with enhanced configuration
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
+    'Accept': 'application/json',
   },
   timeout: 30000, // 30 seconds timeout
+  withCredentials: false, // Important: Set to true if using cookies
 });
 
-// Flag to prevent multiple refresh token requests
-let isRefreshing = false;
-let failedQueue = [];
+// ✅ ADDED: Request retry logic for network errors
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 1000;
 
-// Process queue of failed requests
-const processQueue = (error, token = null) => {
-  failedQueue.forEach((prom) => {
-    if (error) {
-      prom.reject(error);
-    } else {
-      prom.resolve(token);
-    }
-  });
-  failedQueue = [];
+// ✅ ADDED: Health check function to verify backend availability
+const checkBackendHealth = async () => {
+  try {
+    const response = await axios.get(`${API_BASE_URL}/health`, {
+      timeout: 5000,
+      headers: { 'Accept': 'application/json' }
+    });
+    return response.status === 200;
+  } catch (error) {
+    console.error('❌ Backend health check failed:', error.message);
+    return false;
+  }
 };
 
 // Request interceptor - Add token to every request
 api.interceptors.request.use(
-  (config) => {
+  async (config) => {
     // Get token from localStorage
     const token = localStorage.getItem('authToken');
 
@@ -74,15 +81,20 @@ api.interceptors.request.use(
     // Add request ID for debugging
     config.headers['X-Request-ID'] = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
+    // ✅ ADDED: Log request in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`🚀 ${config.method?.toUpperCase()} ${config.url}`, config.data || '');
+    }
+
     return config;
   },
   (error) => {
-    console.error('Request interceptor error:', error);
+    console.error('❌ Request interceptor error:', error);
     return Promise.reject(error);
   }
 );
 
-// Response interceptor - Handle token refresh
+// ✅ IMPROVED: Response interceptor with better error handling
 api.interceptors.response.use(
   (response) => {
     // Check if response contains new token (for refresh endpoint)
@@ -97,6 +109,37 @@ api.interceptors.response.use(
   },
   async (error) => {
     const originalRequest = error.config;
+
+    // ✅ ADDED: Network error detection with retry
+    if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
+      console.warn('⚠️ Network error detected, checking backend health...');
+      
+      const isHealthy = await checkBackendHealth();
+      if (!isHealthy) {
+        const networkError = new Error(
+          'Cannot connect to server. Please ensure: \n' +
+          '1. Backend is running on Render\n' +
+          '2. CORS is configured correctly\n' +
+          `3. API URL is: ${API_BASE_URL}`
+        );
+        networkError.status = 0;
+        networkError.isNetworkError = true;
+        return Promise.reject(networkError);
+      }
+
+      // If backend is healthy but network error persists, retry
+      if (!originalRequest._retry && originalRequest._retryCount < MAX_RETRIES) {
+        originalRequest._retry = true;
+        originalRequest._retryCount = (originalRequest._retryCount || 0) + 1;
+        
+        // Exponential backoff
+        const delay = RETRY_DELAY * Math.pow(2, originalRequest._retryCount - 1);
+        console.log(`🔄 Retrying request (${originalRequest._retryCount}/${MAX_RETRIES}) in ${delay}ms...`);
+        
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return api(originalRequest);
+      }
+    }
 
     // If error is not 401 or request already retried, reject
     if (error.response?.status !== 401 || originalRequest._retry) {
@@ -116,90 +159,139 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    // If already refreshing, queue request
-    if (isRefreshing) {
-      return new Promise((resolve, reject) => {
-        failedQueue.push({ resolve, reject });
-      })
-        .then((token) => {
-          originalRequest.headers.Authorization = `Bearer ${token}`;
-          return api(originalRequest);
+    // Handle 401 unauthorized - token refresh flow
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+      
+      // If already refreshing, queue request
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
         })
-        .catch((err) => {
-          return Promise.reject(err);
-        });
+          .then((token) => {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            return api(originalRequest);
+          })
+          .catch((err) => {
+            return Promise.reject(err);
+          });
+      }
+
+      isRefreshing = true;
+
+      try {
+        // Get refresh token
+        const refreshToken = localStorage.getItem('refreshToken');
+
+        if (!refreshToken) {
+          throw new Error('No refresh token available');
+        }
+
+        // Call refresh endpoint
+        const response = await axios.post(
+          `${API_BASE_URL}/api/auth/refresh`,
+          { refresh_token: refreshToken },
+          { 
+            headers: { 
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            timeout: 10000
+          }
+        );
+
+        const newToken = response.data.token || response.data.access_token;
+        const newRefreshToken = response.data.refreshToken;
+
+        // Store new tokens
+        localStorage.setItem('authToken', newToken);
+        if (newRefreshToken) {
+          localStorage.setItem('refreshToken', newRefreshToken);
+        }
+
+        // Process queued requests
+        processQueue(null, newToken);
+
+        // Update original request with new token
+        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+
+        return api(originalRequest);
+      } catch (refreshError) {
+        // Refresh failed - clear tokens and logout
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('user');
+
+        // Process queue with error
+        processQueue(refreshError, null);
+
+        // Dispatch logout event
+        window.dispatchEvent(new CustomEvent('auth:logout'));
+
+        // Redirect to login
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
+
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
+      }
     }
 
-    // Mark request as retry
-    originalRequest._retry = true;
-    isRefreshing = true;
-
-    try {
-      // Get refresh token
-      const refreshToken = localStorage.getItem('refreshToken');
-
-      if (!refreshToken) {
-        throw new Error('No refresh token available');
-      }
-
-      // Call refresh endpoint
-      const response = await axios.post(
-        `${API_BASE_URL}/api/auth/refresh`,
-        { refresh_token: refreshToken },
-        { headers: { 'Content-Type': 'application/json' } }
-      );
-
-      const newToken = response.data.token || response.data.access_token;
-      const newRefreshToken = response.data.refreshToken;
-
-      // Store new tokens
-      localStorage.setItem('authToken', newToken);
-      if (newRefreshToken) {
-        localStorage.setItem('refreshToken', newRefreshToken);
-      }
-
-      // Process queued requests
-      processQueue(null, newToken);
-
-      // Update original request with new token
-      originalRequest.headers.Authorization = `Bearer ${newToken}`;
-
-      return api(originalRequest);
-    } catch (refreshError) {
-      // Refresh failed - clear tokens and logout
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('user');
-
-      // Process queue with error
-      processQueue(refreshError, null);
-
-      // Dispatch logout event
-      window.dispatchEvent(new CustomEvent('auth:logout'));
-
-      // Redirect to login
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
-      }
-
-      return Promise.reject(refreshError);
-    } finally {
-      isRefreshing = false;
-    }
+    return Promise.reject(error);
   }
 );
 
-// Error handler
+// Flag to prevent multiple refresh token requests
+let isRefreshing = false;
+let failedQueue = [];
+
+// Process queue of failed requests
+const processQueue = (error, token = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
+// ✅ IMPROVED: Error handler with better messages
 const handleError = (error) => {
   // Log error for debugging
-  console.error('API Error:', {
+  console.error('❌ API Error:', {
     message: error.message,
     status: error.response?.status,
     data: error.response?.data,
     config: error.config,
     url: error.config?.url,
     baseURL: error.config?.baseURL,
+    isNetworkError: error.isNetworkError || error.code === 'ERR_NETWORK',
   });
+
+  // Network errors - provide clear guidance
+  if (error.isNetworkError || error.code === 'ERR_NETWORK') {
+    const networkError = new Error(
+      '🌐 Network Error: Cannot reach the server.\n' +
+      'Please verify:\n' +
+      `• Backend is running at: ${API_BASE_URL}\n` +
+      '• Check Render logs for errors\n' +
+      '• Verify CORS is configured on the backend'
+    );
+    networkError.status = 0;
+    networkError.isNetworkError = true;
+    throw networkError;
+  }
+
+  // Timeout errors
+  if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+    const timeoutError = new Error('⏱️ Request timeout. Please try again.');
+    timeoutError.status = 408;
+    throw timeoutError;
+  }
 
   // Extract error message from response
   if (error.response?.data) {
@@ -213,19 +305,6 @@ const handleError = (error) => {
     customError.originalError = error;
 
     throw customError;
-  }
-
-  // Network errors
-  if (error.code === 'ECONNABORTED') {
-    const timeoutError = new Error('Request timeout. Please try again.');
-    timeoutError.status = 408;
-    throw timeoutError;
-  }
-
-  if (error.message === 'Network Error') {
-    const networkError = new Error('Network error. Please check your connection.');
-    networkError.status = 0;
-    throw networkError;
   }
 
   throw error;
@@ -562,7 +641,7 @@ const apiService = {
       await api.post('/api/auth/logout');
     } catch (error) {
       // Ignore logout errors
-      console.warn('Logout error:', error);
+      console.warn('⚠️ Logout error:', error);
     } finally {
       localStorage.removeItem('authToken');
       localStorage.removeItem('refreshToken');
@@ -599,6 +678,11 @@ const apiService = {
       throw handleError(error);
     }
   },
+
+  // ✅ ADDED: Health check method
+  healthCheck: async () => {
+    return await checkBackendHealth();
+  }
 };
 
 // Token management utilities
@@ -627,7 +711,9 @@ export {
   apiService, 
   projectService, 
   creditService, 
-  uploadService 
+  uploadService,
+  API_BASE_URL,
+  checkBackendHealth
 };
 
 // Also keep default export for backward compatibility
@@ -636,5 +722,7 @@ export default {
   apiService, 
   projectService, 
   creditService, 
-  uploadService 
+  uploadService,
+  API_BASE_URL,
+  checkBackendHealth
 };
