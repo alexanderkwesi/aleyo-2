@@ -68,7 +68,29 @@ const G_START = '#4F6EF7';
 const G_MID = '#2DBCB6';
 const G_END = '#3ED67C';
 const GRAD = `linear-gradient(135deg, ${G_START} 0%, ${G_MID} 50%, ${G_END} 100%)`;
-const API_BASE = process.env.REACT_APP_API_URL || 'https://aleyo-2-1.onrender.com' || "http://127.0.0.1:37976" ;
+
+// ✅ FIXED: Proper API URL detection for Render
+const getApiUrl = () => {
+  // Check if we're in a browser environment
+  if (typeof window !== 'undefined') {
+    // For Vercel production (frontend)
+    if (window.location.hostname === 'aleyo-2-six.vercel.app') {
+      return 'https://aleyo-2-1.onrender.com';
+    }
+    // For Render production (backend)
+    if (window.location.hostname.includes('onrender.com')) {
+      return `https://${window.location.hostname}`;
+    }
+    // For local development
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      return 'http://localhost:10000';
+    }
+  }
+  // Fallback to Render production URL
+  return 'https://aleyo-2-1.onrender.com';
+};
+
+const API_BASE = getApiUrl();
 const TOKEN_LOCK_THRESHOLD = 50;
 
 // ── Helper to get component count ──
