@@ -576,6 +576,7 @@ const ProjectsGallery = ({
   const [tabValue, setTabValue] = useState(0);
   const [publishSlug, setPublishSlug] = useState('');
   const [qrCodeUrl, setQrCodeUrl] = useState('');
+  const [error, setError] = useState(null);
 
   // ── Effects ──
   useEffect(() => {
