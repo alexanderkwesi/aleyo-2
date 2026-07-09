@@ -24,18 +24,23 @@ const GRAD = `linear-gradient(135deg, ${G_START} 0%, #2DBCB6 50%, ${G_END} 100%)
 
 // ✅ FIXED: Safe environment variable handling
 const getApiUrl = () => {
-  // Check if process exists (for browser environment)
-  if (typeof process !== 'undefined' && process.env && process.env.REACT_APP_API_URL) {
-    return process.env.REACT_APP_API_URL;
+  // Check if we're in a browser environment
+  if (typeof window !== 'undefined') {
+    // For Vercel production (frontend)
+    if (window.location.hostname === 'aleyo-2-six.vercel.app') {
+      return 'https://aleyo-2-1.onrender.com';
+    }
+    // For Render production (backend)
+    if (window.location.hostname.includes('onrender.com')) {
+      return `https://${window.location.hostname}`;
+    }
+    // For local development
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      return 'http://localhost:10000';
+    }
   }
-  
-  // Production fallback
-  if (typeof window !== 'undefined' && window.location && window.location.hostname === 'aleyo-2-six.vercel.app') {
-    return 'https://aleyo-2-1.onrender.com';
-  }
-  
-  // Development fallback
-  return "http://35.230.74.10:0" ;
+  // Fallback to Render production URL
+  return 'https://aleyo-2-1.onrender.com';
 };
 
 const API_BASE = getApiUrl();
