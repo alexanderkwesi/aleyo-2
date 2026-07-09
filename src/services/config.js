@@ -10,7 +10,7 @@ const getApiUrl = () => {
     }
     // For local development
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-      return 'http://localhost:10000';
+      return 'http://127.0.0.1:*';
     }
   }
   
