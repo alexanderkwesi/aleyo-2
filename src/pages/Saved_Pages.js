@@ -79,11 +79,9 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import QRCode from 'qrcode';
 
-
 // ============================================================
 // CONSTANTS & CONFIGURATION
 // ============================================================
-//const REACT_APP_API_URL = "https://aleyo-2-six.vercel.app";
 const API_BASE = process.env.REACT_APP_API_URL || 'https://aleyo-2-1.onrender.com';
 const STORAGE_KEYS = {
   PROJECT_PREFIX: 'project_',
@@ -160,6 +158,7 @@ const saveFavorites = (favorites) => {
 const useDatabaseProjects = () => {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [syncing, setSyncing] = useState(false);
 
   const fetchProjects = useCallback(async () => {
@@ -181,7 +180,6 @@ const useDatabaseProjects = () => {
         },
       });
 
-      // Process projects from database
       const dbProjects = response.data.map((project) => ({
         id: project.id,
         name: project.name,
@@ -246,7 +244,6 @@ const useDatabaseProjects = () => {
 
         let response;
         if (project.isFromDatabase && project.id) {
-          // Update existing project
           response = await axios.put(`${API_BASE}/api/projects/${project.id}`, payload, {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -254,7 +251,6 @@ const useDatabaseProjects = () => {
             },
           });
         } else {
-          // Create new project
           response = await axios.post(
             `${API_BASE}/api/projects`,
             {
@@ -270,7 +266,6 @@ const useDatabaseProjects = () => {
           );
         }
 
-        // Refresh project list
         await fetchProjects();
         return response.data;
       } catch (err) {
@@ -421,6 +416,7 @@ const useDatabaseProjects = () => {
     projects,
     loading,
     error,
+    setError,
     syncing,
     fetchProjects,
     saveProjectToDB,
@@ -436,7 +432,6 @@ const useDatabaseProjects = () => {
 const generateThumbnail = (project) => {
   if (project?.thumbnail) return project.thumbnail;
   if (!project) return null;
-  // SSR safety: canvas is not available on server
   if (typeof window === 'undefined' || !document?.createElement) return null;
 
   const styles = project.styles || {};
@@ -533,6 +528,7 @@ const ProjectsGallery = ({
     projects,
     loading,
     error,
+    setError,
     syncing,
     fetchProjects,
     saveProjectToDB,
@@ -574,14 +570,12 @@ const ProjectsGallery = ({
   const [tabValue, setTabValue] = useState(0);
   const [publishSlug, setPublishSlug] = useState('');
   const [qrCodeUrl, setQrCodeUrl] = useState('');
-  const [error, setError] = useState(null);
 
   // ── Effects ──
   useEffect(() => {
     setFavorites(getFavorites());
   }, []);
 
-  // Generate QR code when share dialog opens with a published URL
   useEffect(() => {
     if (shareDialogOpen && selectedProject?.publishedUrl) {
       QRCode.toDataURL(selectedProject.publishedUrl, { width: 120, margin: 2 })
@@ -644,7 +638,6 @@ const ProjectsGallery = ({
       if (onOpenProject) {
         onOpenProject(project);
       } else {
-        // Save project to localStorage for the studio
         localStorage.setItem(
           `${STORAGE_KEYS.PROJECT_PREFIX}${project.id}`,
           JSON.stringify(project)
