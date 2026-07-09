@@ -79,6 +79,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import QRCode from 'qrcode';
 
+
 // ============================================================
 // CONSTANTS & CONFIGURATION
 // ============================================================
@@ -159,6 +160,7 @@ const saveFavorites = (favorites) => {
 const useDatabaseProjects = () => {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
+  // At the top of your component, with other useState declarations
   const [error, setError] = useState(null);
   const [syncing, setSyncing] = useState(false);
 
