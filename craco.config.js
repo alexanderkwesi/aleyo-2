@@ -15,7 +15,7 @@ module.exports = {
       webpackConfig.plugins.push(
         new webpack.DefinePlugin({
           'process.env.REACT_APP_API_URL': JSON.stringify(
-            process.env.REACT_APP_API_URL || 'https://aleyo-2-1.onrender.com'
+            process.env.REACT_APP_API_URL || 'http://35.230.74.10:0'
           ),
         })
       );
