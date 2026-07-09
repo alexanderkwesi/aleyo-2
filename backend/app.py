@@ -87,7 +87,6 @@ except ImportError as e:
         created_at = Column(DateTime, default=datetime.now(timezone.utc))
         updated_at = Column(DateTime, default=datetime.now(timezone.utc))
     
-    # ✅ FIXED: Renamed 'metadata' column to 'extra_data' (SQLAlchemy reserved)
     class CreditTransaction(Base):
         __tablename__ = "credit_transactions"
         id = Column(String, primary_key=True)
@@ -95,10 +94,10 @@ except ImportError as e:
         amount = Column(Integer)
         type = Column(String)
         description = Column(String)
-        extra_data = Column(JSON, nullable=True)  # ← FIXED: renamed from 'metadata'
+        extra_data = Column(JSON, nullable=True)
         created_at = Column(DateTime, default=datetime.now(timezone.utc))
     
-    project_designs = None  # Placeholder
+    project_designs = None
 
 # ==================== Import Storage ====================
 try:
@@ -172,7 +171,7 @@ ALLOWED_ORIGINS = [
     "http://127.0.0.1:3000",
     "http://127.0.0.1:3001",
     "https://aleyo-2-six.vercel.app",
-    "https://aleyo-2-1.onrender.com", "*", "http://35.230.74.10:0"
+    "https://aleyo-2-1.onrender.com",
 ]
 
 # Add FRONTEND_URL if set
@@ -388,7 +387,6 @@ def deduct_credits(db: Session, user_id: str, amount: int) -> bool:
     user = db.query(User).filter(User.id == user_id).first()
     if user and user.credits_balance >= amount:
         try:
-            # Try to create transaction record
             transaction = CreditTransaction(
                 id=str(uuid.uuid4()),
                 user_id=user_id,
@@ -402,7 +400,6 @@ def deduct_credits(db: Session, user_id: str, amount: int) -> bool:
             db.refresh(user)
             return True
         except:
-            # Fallback: just deduct credits
             user.credits_balance -= amount
             db.commit()
             return True
@@ -436,12 +433,10 @@ def add_credits(db: Session, user_id: str, amount: int, description: str = "Cred
 @app.post("/api/auth/signup", response_model=Token)
 async def signup(user_data: UserCreate, db: Session = Depends(get_db)):
     """User registration"""
-    # Check if user exists
     existing_user = db.query(User).filter(User.email == user_data.email).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered")
 
-    # Hash password and create user
     hashed_password = hash_password(user_data.password)
     user = User(
         id=str(uuid.uuid4()),
@@ -456,7 +451,6 @@ async def signup(user_data: UserCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(user)
 
-    # Create access token
     access_token = create_access_token(data={"sub": str(user.id)})
     
     return {
@@ -592,7 +586,6 @@ async def get_credit_transactions(
             CreditTransaction.user_id == current_user.id
         ).order_by(desc(CreditTransaction.created_at)).all()
         
-        # ✅ FIXED: Removed 'metadata' reference (was renamed to extra_data)
         return [
             {
                 "id": str(tx.id),
@@ -600,7 +593,6 @@ async def get_credit_transactions(
                 "type": tx.type,
                 "description": tx.description,
                 "created_at": tx.created_at
-                # 'extra_data' is available but not returned here
             }
             for tx in transactions
         ]
@@ -1069,17 +1061,24 @@ async def list_user_files(
 
 if __name__ == "__main__":
     import uvicorn
-    #http://35.230.74.10:0
+    
     # Get Render's PORT (or fallback for local development)
-    port = int(os.getenv("PORT", "0"))
-    host = os.getenv("HOST", "35.230.74.10")
+    # Render sets PORT environment variable, default to 10000 for local
+    port = int(os.getenv("PORT", "10000"))
+    
+    # Render uses 0.0.0.0 to bind to all interfaces
+    host = os.getenv("HOST", "0.0.0.0")
     
     # Check if running on Render
     is_render = os.getenv("RENDER", "false").lower() == "true"
     
-    logger.info(f"Starting server on {host}:{port}")
-    logger.info(f"Running on Render: {is_render}")
-    logger.info(f"Environment: {'production' if is_render else 'development'}")
+    logger.info("=" * 50)
+    logger.info("🚀 Starting Aleyo Backend Server")
+    logger.info(f"📍 Host: {host}")
+    logger.info(f"🔌 Port: {port}")
+    logger.info(f"☁️  Running on Render: {is_render}")
+    logger.info(f"🌍 Environment: {'production' if is_render else 'development'}")
+    logger.info("=" * 50)
     
     # Run with Uvicorn - configured for Render
     uvicorn.run(
