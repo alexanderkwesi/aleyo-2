@@ -172,7 +172,7 @@ ALLOWED_ORIGINS = [
     "http://127.0.0.1:3000",
     "http://127.0.0.1:3001",
     "https://aleyo-2-six.vercel.app",
-    "https://aleyo-2-1.onrender.com", "*", "http://127.0.0.1:*"
+    "https://aleyo-2-1.onrender.com", "*", "http://35.230.74.10:0"
 ]
 
 # Add FRONTEND_URL if set
