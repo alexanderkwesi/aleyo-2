@@ -1,4 +1,4 @@
-// Designs.js - Updated to fetch from API
+// Designs.js - Updated to fetch from API with proper error handling
 import React, { useState, useEffect } from 'react';
 import {
   Box,
@@ -51,16 +51,17 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import config, { checkApiHealth, API_BASE } from '../config'; // Import config
 
 const G_START = '#4F6EF7';
 const G_MID = '#2DBCB6';
 const G_END = '#3ED67C';
 const GRAD = `linear-gradient(135deg, ${G_START} 0%, ${G_MID} 50%, ${G_END} 100%)`;
-//const REACT_APP_API_URL = "https://aleyo-2-six.vercel.app";
-// API Base URL
-const API_URL = process.env.REACT_APP_API_URL || 'https://aleyo-2-1.onrender.com' || "http://127.0.0.1:37976";
 
-// Default templates as fallback when API fails
+// ✅ FIXED: Use config for API URL
+const API_URL = API_BASE || 'https://aleyo-2-1.onrender.com';
+
+// ✅ IMPROVED: Default templates with proper color schemes
 const defaultTemplates = [
   {
     id: '1',
@@ -75,17 +76,131 @@ const defaultTemplates = [
     icon: 'Business',
     color: '#A59B8C',
     colors: {
-      primaryColor: '#A59B8C',
-      secondaryColor: '#6B5E4A',
-      accentColor: '#C4B5A0',
-      backgroundColor: '#FAF9F7',
-      textColor: '#2C2C2C',
-      headingColor: '#1A1A1A',
+      primaryColor: '#4F6EF7',
+      secondaryColor: '#2DBCB6',
+      accentColor: '#3ED67C',
+      backgroundColor: '#080C14',
+      textColor: '#FFFFFF',
+      headingColor: '#FFFFFF',
       heroTitle: 'Modern Minimalist Design',
       heroSubtitle: 'Clean, professional, and effective',
     },
   },
-  // Add other default templates here...
+  {
+    id: '2',
+    name: 'Creative Portfolio',
+    category: 'portfolio',
+    description: 'Showcase your work with this elegant portfolio template',
+    image: 'https://placehold.co/600x400/6C5CE7/FFFFFF?text=Creative+Portfolio',
+    rating: 4.9,
+    reviews: 189,
+    features: ['Gallery', 'Animations', 'Responsive'],
+    popular: true,
+    icon: 'DesignServices',
+    color: '#6C5CE7',
+    colors: {
+      primaryColor: '#6C5CE7',
+      secondaryColor: '#A29BFE',
+      accentColor: '#FD79A8',
+      backgroundColor: '#0A0A0A',
+      textColor: '#FFFFFF',
+      headingColor: '#FFFFFF',
+      heroTitle: 'Creative Portfolio',
+      heroSubtitle: 'Showcase your best work',
+    },
+  },
+  {
+    id: '3',
+    name: 'E-Commerce Pro',
+    category: 'ecommerce',
+    description: 'Powerful online store with all the features you need to sell',
+    image: 'https://placehold.co/600x400/00B894/FFFFFF?text=E-Commerce+Pro',
+    rating: 4.7,
+    reviews: 312,
+    features: ['Product Catalog', 'Cart', 'Payment'],
+    popular: true,
+    icon: 'Storefront',
+    color: '#00B894',
+    colors: {
+      primaryColor: '#00B894',
+      secondaryColor: '#00CEC9',
+      accentColor: '#FDCB6E',
+      backgroundColor: '#0A0A0A',
+      textColor: '#FFFFFF',
+      headingColor: '#FFFFFF',
+      heroTitle: 'E-Commerce Pro',
+      heroSubtitle: 'Start selling today',
+    },
+  },
+  {
+    id: '4',
+    name: 'Education Hub',
+    category: 'education',
+    description: 'Modern learning platform with course management',
+    image: 'https://placehold.co/600x400/0984E3/FFFFFF?text=Education+Hub',
+    rating: 4.6,
+    reviews: 156,
+    features: ['Courses', 'Quizzes', 'Progress'],
+    popular: false,
+    icon: 'School',
+    color: '#0984E3',
+    colors: {
+      primaryColor: '#0984E3',
+      secondaryColor: '#74B9FF',
+      accentColor: '#00CEC9',
+      backgroundColor: '#0A0A0A',
+      textColor: '#FFFFFF',
+      headingColor: '#FFFFFF',
+      heroTitle: 'Education Hub',
+      heroSubtitle: 'Learn anything, anywhere',
+    },
+  },
+  {
+    id: '5',
+    name: 'Restaurant Delight',
+    category: 'restaurant',
+    description: 'Beautiful template for restaurants and food businesses',
+    image: 'https://placehold.co/600x400/E17055/FFFFFF?text=Restaurant+Delight',
+    rating: 4.8,
+    reviews: 203,
+    features: ['Menu', 'Reservations', 'Gallery'],
+    popular: true,
+    icon: 'Restaurant',
+    color: '#E17055',
+    colors: {
+      primaryColor: '#E17055',
+      secondaryColor: '#FDCB6E',
+      accentColor: '#00B894',
+      backgroundColor: '#0A0A0A',
+      textColor: '#FFFFFF',
+      headingColor: '#FFFFFF',
+      heroTitle: 'Restaurant Delight',
+      heroSubtitle: 'Fine dining experience',
+    },
+  },
+  {
+    id: '6',
+    name: 'Tech Startup',
+    category: 'business',
+    description: 'Modern template for tech startups and SaaS companies',
+    image: 'https://placehold.co/600x400/6C5CE7/FFFFFF?text=Tech+Startup',
+    rating: 4.9,
+    reviews: 267,
+    features: ['SaaS Ready', 'API', 'Analytics'],
+    popular: true,
+    icon: 'Code',
+    color: '#6C5CE7',
+    colors: {
+      primaryColor: '#6C5CE7',
+      secondaryColor: '#00CEC9',
+      accentColor: '#FDCB6E',
+      backgroundColor: '#080C14',
+      textColor: '#FFFFFF',
+      headingColor: '#FFFFFF',
+      heroTitle: 'Tech Startup',
+      heroSubtitle: 'Build your digital empire',
+    },
+  },
 ];
 
 const categories = [
@@ -126,30 +241,66 @@ const Designs = ({ setCurrentProject = () => {} }) => {
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarSeverity, setSnackbarSeverity] = useState('success');
   const [useTemplateLoading, setUseTemplateLoading] = useState(false);
+  const [apiAvailable, setApiAvailable] = useState(true);
 
-  // Fetch designs from API
+  // ✅ IMPROVED: Fetch designs with proper error handling and fallback
   useEffect(() => {
     const fetchDesigns = async () => {
       setLoading(true);
+      setError(null);
+      
       try {
-        const token = localStorage.getItem('accessToken');
+        // First, check if API is available
+        const healthCheck = await checkApiHealth();
+        
+        if (!healthCheck.healthy) {
+          console.warn('⚠️ API not available, using default templates');
+          setApiAvailable(false);
+          setTemplates(defaultTemplates);
+          setError('Server is currently unavailable. Using local templates.');
+          return;
+        }
+
+        // Fetch designs from API
+        const token = localStorage.getItem('accessToken') || localStorage.getItem('authToken');
         const response = await axios.get(`${API_URL}/api/designs/all`, {
           headers: {
             Authorization: token ? `Bearer ${token}` : '',
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
           },
+          timeout: 10000, // 10 second timeout
         });
 
         if (response.data && response.data.length > 0) {
           setTemplates(response.data);
+          setApiAvailable(true);
+          setError(null);
         } else {
-          // If no designs in database, use default templates
+          // If API returns empty, use default templates
+          console.warn('⚠️ API returned empty, using default templates');
           setTemplates(defaultTemplates);
+          setError('No designs available from server. Using local templates.');
         }
       } catch (err) {
-        console.error('Error fetching designs:', err);
-        // Fallback to default templates
+        console.error('❌ Error fetching designs:', err);
+        
+        // ✅ IMPROVED: Better error handling with specific messages
+        let errorMessage = 'Could not load designs from server. Using default templates.';
+        
+        if (err.code === 'ECONNABORTED') {
+          errorMessage = 'Connection timeout. Using local templates.';
+        } else if (err.response?.status === 401) {
+          errorMessage = 'Authentication required. Please login to see designs.';
+        } else if (err.response?.status === 404) {
+          errorMessage = 'Designs endpoint not found. Using local templates.';
+        } else if (err.message === 'Network Error' || err.code === 'ERR_NETWORK') {
+          errorMessage = 'Network error. Please check your connection. Using local templates.';
+        }
+        
+        setApiAvailable(false);
         setTemplates(defaultTemplates);
-        setError('Could not load designs from server. Using default templates.');
+        setError(errorMessage);
       } finally {
         setLoading(false);
       }
@@ -162,67 +313,94 @@ const Designs = ({ setCurrentProject = () => {} }) => {
   useEffect(() => {
     const savedFavorites = localStorage.getItem('templateFavorites');
     if (savedFavorites) {
-      setFavorites(JSON.parse(savedFavorites));
+      try {
+        setFavorites(JSON.parse(savedFavorites));
+      } catch (e) {
+        console.warn('Failed to parse favorites:', e);
+        setFavorites([]);
+      }
     }
   }, []);
 
   // Save favorites to localStorage
   useEffect(() => {
-    localStorage.setItem('templateFavorites', JSON.stringify(favorites));
+    try {
+      localStorage.setItem('templateFavorites', JSON.stringify(favorites));
+    } catch (e) {
+      console.warn('Failed to save favorites:', e);
+    }
   }, [favorites]);
 
   const handleFavorite = (id) => {
     setFavorites((prev) => {
-      const newFavorites = prev.includes(id) ? prev.filter((f) => f !== id) : [...prev, id];
+      const isFavorite = prev.includes(id);
+      const newFavorites = isFavorite 
+        ? prev.filter((f) => f !== id) 
+        : [...prev, id];
+      
+      setSnackbarMessage(isFavorite ? 'Removed from favorites' : 'Added to favorites');
+      setSnackbarSeverity('info');
+      setSnackbarOpen(true);
+      
       return newFavorites;
     });
-    setSnackbarMessage(favorites.includes(id) ? 'Removed from favorites' : 'Added to favorites');
-    setSnackbarSeverity('info');
-    setSnackbarOpen(true);
   };
 
-  // Designs.js - Updated handleUseTemplate function
-
-  // Designs.js - Updated handleUseTemplate function
-
+  // ✅ IMPROVED: handleUseTemplate with better error handling and validation
   const handleUseTemplate = (template) => {
+    if (!template || !template.id) {
+      console.error('❌ Invalid template data:', template);
+      setSnackbarMessage('Error: Invalid template selected.');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+      return;
+    }
+
     setUseTemplateLoading(true);
+    
     try {
-      // Create a clean copy of template
+      // Ensure template has required fields
       const cleanTemplate = {
-        id: template.id,
-        name: template.name,
-        category: template.category,
-        description: template.description,
-        image: template.image,
-        rating: template.rating,
-        reviews: template.reviews,
-        features: template.features,
-        popular: template.popular,
-        color: template.color,
-        colors: template.colors,
+        id: template.id || `template_${Date.now()}`,
+        name: template.name || 'Untitled Template',
+        category: template.category || 'general',
+        description: template.description || '',
+        image: template.image || 'https://placehold.co/600x400/4F6EF7/FFFFFF?text=Template',
+        rating: template.rating || 4.5,
+        reviews: template.reviews || 0,
+        features: template.features || ['Responsive', 'Modern'],
+        popular: template.popular || false,
+        color: template.color || '#4F6EF7',
+        colors: template.colors || {
+          primaryColor: '#4F6EF7',
+          secondaryColor: '#2DBCB6',
+          accentColor: '#3ED67C',
+          backgroundColor: '#080C14',
+          textColor: '#FFFFFF',
+          headingColor: '#FFFFFF',
+        },
       };
 
-      // Save template colors to localStorage for the DesignStudio to pick up
-      localStorage.setItem('selectedDesignColors', JSON.stringify(template.colors));
+      // Save template colors to localStorage
+      localStorage.setItem('selectedDesignColors', JSON.stringify(cleanTemplate.colors));
       localStorage.setItem('selectedTemplate', JSON.stringify(cleanTemplate));
 
       // Create a minimal project reference
       const projectId = `project_${Date.now()}`;
       const newProject = {
         id: projectId,
-        name: template.name,
-        type: template.category,
+        name: cleanTemplate.name,
+        type: cleanTemplate.category,
         lastEdited: new Date().toISOString(),
         status: 'draft',
         credits: 100,
-        design: template.name,
-        templateId: template.id,
-        colors: template.colors,
+        design: cleanTemplate.name,
+        templateId: cleanTemplate.id,
+        colors: cleanTemplate.colors,
         template: cleanTemplate,
       };
 
-      // Save minimal project to localStorage
+      // Save project to localStorage
       localStorage.setItem(`project_${projectId}`, JSON.stringify(newProject));
       localStorage.setItem('latest_project_id', projectId);
       localStorage.setItem('latest_project_data', JSON.stringify(newProject));
@@ -230,13 +408,13 @@ const Designs = ({ setCurrentProject = () => {} }) => {
       // Update the current project state
       if (setCurrentProject && typeof setCurrentProject === 'function') {
         setCurrentProject(newProject);
-        setSnackbarMessage(`"${template.name}" template loaded successfully!`);
+        setSnackbarMessage(`"${cleanTemplate.name}" template loaded successfully! 🎨`);
         setSnackbarSeverity('success');
         setSnackbarOpen(true);
 
         // Navigate to studio with the template data
         setTimeout(() => {
-          navigate(`/studio?design=${encodeURIComponent(template.name)}`, {
+          navigate(`/studio?design=${encodeURIComponent(cleanTemplate.name)}`, {
             state: {
               design: cleanTemplate,
               project: newProject,
@@ -245,13 +423,17 @@ const Designs = ({ setCurrentProject = () => {} }) => {
           });
         }, 500);
       } else {
-        console.error('setCurrentProject is not a function');
-        setSnackbarMessage('Error: Unable to create project. Please try again.');
-        setSnackbarSeverity('error');
-        setSnackbarOpen(true);
+        // If setCurrentProject is not available, still navigate
+        navigate(`/studio?design=${encodeURIComponent(cleanTemplate.name)}`, {
+          state: {
+            design: cleanTemplate,
+            project: newProject,
+            template: cleanTemplate,
+          },
+        });
       }
     } catch (error) {
-      console.error('Error creating project:', error);
+      console.error('❌ Error creating project:', error);
       setSnackbarMessage('Error creating project. Please try again.');
       setSnackbarSeverity('error');
       setSnackbarOpen(true);
@@ -265,10 +447,11 @@ const Designs = ({ setCurrentProject = () => {} }) => {
     setDialogOpen(true);
   };
 
+  // Filter templates
   const filteredTemplates = templates.filter((template) => {
     const matchesSearch =
-      template.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      template.description.toLowerCase().includes(searchTerm.toLowerCase());
+      template.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      template.description?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = selectedCategory === 'all' || template.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
@@ -291,11 +474,16 @@ const Designs = ({ setCurrentProject = () => {} }) => {
           bgcolor: '#080C14',
           minHeight: '100vh',
           display: 'flex',
+          flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
+          gap: 2,
         }}
       >
         <CircularProgress sx={{ color: G_START }} />
+        <Typography sx={{ color: 'rgba(255,255,255,0.6)' }}>
+          Loading designs...
+        </Typography>
       </Box>
     );
   }
@@ -315,10 +503,31 @@ const Designs = ({ setCurrentProject = () => {} }) => {
             Choose from our collection of professionally designed templates. Each template comes
             with a complete color scheme that will be automatically applied.
           </Typography>
-          {error && (
+          
+          {/* ✅ ADDED: API Status indicator */}
+          {!apiAvailable && (
             <Alert
               severity="warning"
-              sx={{ mb: 2, bgcolor: 'rgba(255,165,0,0.1)', color: '#FFA500' }}
+              sx={{ 
+                mb: 2, 
+                bgcolor: 'rgba(255,165,0,0.1)', 
+                color: '#FFA500',
+                border: '1px solid rgba(255,165,0,0.2)'
+              }}
+            >
+              {error || 'Using local templates. Some features may be limited.'}
+            </Alert>
+          )}
+          
+          {error && apiAvailable && (
+            <Alert
+              severity="info"
+              sx={{ 
+                mb: 2, 
+                bgcolor: 'rgba(79,110,247,0.1)', 
+                color: G_START,
+                border: `1px solid ${alpha(G_START, 0.2)}`
+              }}
             >
               {error}
             </Alert>
@@ -380,7 +589,7 @@ const Designs = ({ setCurrentProject = () => {} }) => {
           <AnimatePresence>
             {displayedTemplates.length > 0 ? (
               displayedTemplates.map((template, index) => (
-                <Grid item xs={12} sm={6} md={4} key={template.id}>
+                <Grid item xs={12} sm={6} md={4} key={template.id || `template-${index}`}>
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -409,6 +618,9 @@ const Designs = ({ setCurrentProject = () => {} }) => {
                             width: '100%',
                             height: 200,
                             objectFit: 'cover',
+                          }}
+                          onError={(e) => {
+                            e.target.src = 'https://placehold.co/600x400/4F6EF7/FFFFFF?text=Template';
                           }}
                         />
                         {template.popular && (
@@ -606,6 +818,9 @@ const Designs = ({ setCurrentProject = () => {} }) => {
                     borderRadius: '12px',
                     mb: 2,
                   }}
+                  onError={(e) => {
+                    e.target.src = 'https://placehold.co/600x400/4F6EF7/FFFFFF?text=Template';
+                  }}
                 />
                 <Typography variant="body1" sx={{ color: 'rgba(255,255,255,0.8)', mb: 2 }}>
                   {selectedTemplate.description}
@@ -707,6 +922,6 @@ const Designs = ({ setCurrentProject = () => {} }) => {
       </Container>
     </Box>
   );
-};;;
+};
 
 export default Designs;
