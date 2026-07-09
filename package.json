@@ -14,7 +14,8 @@
     "react-apexcharts": "^1.4.1",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.20.1",
-    "react-scripts": "5.0.1"
+    "react-scripts": "5.0.1",
+    "react-color": "^2.19.3"
   },
   "devDependencies": {
     "webpack-bundle-analyzer": "^4.10.2"
