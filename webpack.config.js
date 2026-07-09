@@ -42,7 +42,7 @@ module.exports = {
     // ✅ CORRECT: Only define specific environment variables
     new webpack.DefinePlugin({
       'process.env.REACT_APP_API_URL': JSON.stringify(
-        process.env.REACT_APP_API_URL || 'https://aleyo-2-1.onrender.com'
+        process.env.REACT_APP_API_URL || 'https://aleyo-2-1.onrender.com' || "http://127.0.0.1:*"
       ),
       'process.env.NODE_ENV': JSON.stringify(
         process.env.NODE_ENV || 'development'
